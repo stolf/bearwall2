@@ -1,0 +1,12 @@
+function status() {
+	echo "*** $*"
+}
+
+function substatus() {
+	echo " *  $*"
+}
+
+function subsubstatus() {
+	echo "    $*"
+}
+

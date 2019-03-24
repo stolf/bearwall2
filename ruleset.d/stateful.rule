@@ -1,0 +1,6 @@
+#
+# Policy: stateful
+# Description:
+#  Uses conntrack state to allow connections to pass
+
+nft ct state established,related accept

@@ -1,0 +1,7 @@
+#
+# Policy: martians
+# Description:
+#  Disallow packets from the internal network ranges
+
+policy in ip protocol icmp icmp type {echo-reply, destination-unreachable, echo-request, time-exceeded} accept
+policy in ip6 nexthdr icmpv6 icmpv6 type {echo-reply, destination-unreachable, echo-request, time-exceeded,packet-too-big} accept

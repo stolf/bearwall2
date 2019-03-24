@@ -1,0 +1,121 @@
+#!/bin/bash
+
+BASEDIR=@BASEDIR@
+CONFDIR=@CONFDIR@
+DATADIR=@DATADIR@
+
+# Don't change these directly, they are filled in by make release
+# when a new release is built.
+VERSION="2.00"
+REVISION="HEAD"
+
+# flush the datadir
+rm -rf $DATADIR/tmp
+mkdir -p $DATADIR/tmp
+
+OF=$DATADIR/tmp/output.nftables
+
+# Command line arguments
+FLUSH=0
+DRYRUN=0
+if [ $# -gt "0" ] ; then
+	case "$1" in 
+		-v|--version)
+			echo "Bearwall2 version 2.0"
+			exit
+			;;
+		-f|--flush)
+			FLUSH=1
+			;;
+		-d|--dry-run)
+			DRYRUN=1
+			;;
+		*)
+			echo $(basename $0) takes no options
+			exit
+			;;
+	esac
+fi
+
+# Parse configuration file
+# Configuration variables can be accessed as conf_KEY
+while read line; do
+	if [[ "$line" =~ ^[^#]*= ]]; then
+		k=`echo $line | cut -d'=' -f 1`
+		v=`echo $line | cut -d'=' -f 2-`
+		export $"conf_${k}"=$v
+	fi
+done < $CONFDIR/bearwall2.conf
+
+cd $BASEDIR
+. support/common.functions
+. support/firewall.functions
+
+# Check we actually have interface configuration before we start
+
+if [ -d $CONFDIR/interfaces.d/ ]; then
+	INTFILES=`ls -1 $CONFDIR/interfaces.d/*.if 2>/dev/null | wc -l`
+	if [ $INTFILES -eq 0 ] ; then
+		echo No interfaces defined in $CONFDIR/interfaces.d, aborting.
+		exit
+	fi
+else
+	echo No interfaces.d directory in $CONFDIR/, aborting.
+	exit
+fi
+
+# User is requesting we kill the firewall, not load it.
+if [ "$FLUSH" -eq 1 ]; then
+	status "Flushing firewall"
+
+	substatus "invoking nftables (nft flush ruleset)"
+	/usr/sbin/nft flush ruleset
+	exit 0
+fi
+
+HOOK_PREROUTING=0
+HOOK_POSTROUTING=0
+HOOK_INPUT=0
+HOOK_OUTPUT=0
+HOOK_FORWARD=0
+HOOK_RAW=0
+COMPRESS_FORWARD=1
+declare -a INPUT_IFACE=()
+
+declare -a INTERFACES
+
+
+# This is the meat of the script.
+# For each interface (defined in the $CONFDIR/interfaces.d directory)
+#  Create some chains, "if-in", "if-out", "if-forward-in", "if-forward-out"
+#  "if-postrouting-out"
+#  Then source the file in that directory.
+# most of your rules will be defined in these files
+echo "flush ruleset" > $OF
+echo "table inet bearwall {" >> $OF
+
+# Deal with any conf_conntrack options
+. support/notrack
+
+status Configuring interfaces
+for intf in $CONFDIR/interfaces.d/*.if; do
+	if=$(basename $intf| sed s/\.if$//)
+
+	load_interface_rules $if
+done
+
+build_vmap $HOOK_INPUT input input ${INPUT_IFACE[@]}
+build_vmap $HOOK_OUTPUT output output ${OUTPUT_IFACE[@]}
+build_vmap_fwd 
+build_vmap $HOOK_PREROUTING prerouting prerouting ${PREROUTING_IFACE[@]}
+build_vmap $HOOK_POSTROUTING postrouting postrouting ${POSTROUTING_IFACE[@]}
+echo "}" >> $OF
+
+if [ "$DRYRUN" -eq 0 ]; then
+	status "Doing atomic load"
+	substatus "invoking nftables (nft)"
+	/usr/sbin/nft -f $OF
+else
+	status "Dryrun mode, not loading firewall"
+	substatus "nftables file found at $OF"
+fi

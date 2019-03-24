@@ -1,0 +1,81 @@
+#
+# Bearwall configuration file
+#
+# This file is used to configure the behaviour of bearwall, firewall rules
+# are configured in @CONFDIR@/interfaces.d and @CONFDIR@/classes.d
+#
+
+#
+# Logging
+#
+# Where should firewall rule matches be logged to?
+#
+# Values:
+#    - syslog
+#        Logs end up in /var/log/bearwall.log, the downside of syslog is
+#        that dmesg gets polluted with rule matches
+#    - nflog
+#        Packets that match firewall rules will be passed to the userspace
+#        daemon ulogd which will then log packets to the log file configured
+#        in /etc/ulogd.conf (/var/log/ulog/syslogemu.log by default)
+#    - none
+#        Don't log matched packets
+#
+# Default: logging=syslog
+logging=syslog
+
+#
+# Connnection tracking
+#
+# Should bearwall act as a stateful or stateless firewall with packets being
+# forwarded through the firewall.
+#
+# Note: Packets being delt with on the local host (INPUT and OUTPUT) must
+# be statefully tracked even in a stateless configuration
+#
+# Values:
+#    - stateful
+#        All packets are processed by conntrack enabling full stateful firewall
+#        features like 'ct' matching on foward rules, dnat, snat and masquerade.
+#    - local
+#        bearwall inspects the routing table for all local routes on load
+#        and statically enables connection tracking for these routes only. This
+#        means that packets forwared though the machne skip conntrack and
+#        no stateful matches are possible in foward. Stateful firewall features
+#        are only available on in, out, and inout targets.
+#        Note: Does play well with IPv6 privicy adresses and other
+#        dynamic addresses.
+#    - stateless
+#        Conntrack is disabled for all packets. No stateful firewall features
+#        are available at all.
+#
+# Default: conntrack=stateful
+conntrack=stateful
+
+#
+# Missing interfaces
+#
+# What should bearwall do when it comes across an interface that it has a
+# firewall definition for, but the interface does not exist on the host.
+#
+# By default bearwall uses a intrface matching mode where nftables matches all 
+# interface names to ifIndex and interfaces are matched by nftable at run time
+# using the inIndex only. This is a much faster way of operating, but resaults
+# in nftable errors on load if the interface does not exist. Bearwall can
+# help deal with this by a few methods
+#
+# Values:
+#    - ifname
+#        Allways use ifname rather ifIndex (Warning SLOW)
+#    - lazy
+#        Fallback to ifname if interface does not exist (Warning potentially
+#        slow on high through put routers)
+#    - withhold
+#        Don't configure rules for the interface if it does not exist
+#    - error
+#        Error out on rule generation if interface does not exist
+#    - ignore
+#        Don't detect case (Most likely nftables will fail to load)
+#
+# Default missing=withhold
+missing=withhold

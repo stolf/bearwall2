@@ -1,0 +1,472 @@
+#!/bin/bash
+
+# Common functions used in firewall rules. You must source this from a script
+# that has already setup IPTABLES!
+
+function change_feature() {
+	FC=`cat $1`
+	if [ "$FC" != "$2" ]; then
+		if [ "$DRYRUN" -eq 0 ]; then
+			echo $2 > $1
+			subsubstatus "$1 changed from $FC to $2"
+		else
+			subsubstatus "Dryrun: $1 would change from $FC to $2"
+		fi
+	fi
+}
+
+# This function sets or clears a feature for an interface
+#
+# usage:
+#  if_feature [-4|-6] featurename value
+# eg:
+#  if_feature ip_forwarding 1
+#  if_feature -6 ip_forwarding 1
+#  if_feature -4 ip_forwarding 1
+function if_feature() {
+	NO6=
+	NO4=
+	NOSHIFT=
+
+	case $1 in
+		-4)
+			NO6=1
+			;;
+		-6)
+			NO4=1
+			;;
+		*)
+			NOSHIFT=1
+	esac
+
+	if [ -z "$NOSHIFT" ]; then
+		shift
+	fi
+
+	if [ -z "${if}" ]; then
+		if [ -z "$NO4" -a -e /proc/sys/net/ipv4/conf/all/$1 ]; then
+			change_feature /proc/sys/net/ipv4/conf/all/$1 $2
+		fi
+		if [ -z "$NO6" -a -e /proc/sys/net/ipv6/conf/all/$1 ]; then
+			change_feature /proc/sys/net/ipv6/conf/all/$1 $2
+		fi
+
+	else
+		if [ -z "$NO4" -a -e /proc/sys/net/ipv4/conf/${if}/$1 ]; then
+			change_feature /proc/sys/net/ipv4/conf/${if}/$1 $2
+		fi
+		if [ -z "$NO6" -a -e /proc/sys/net/ipv6/conf/${if}/$1 ]; then
+			change_feature /proc/sys/net/ipv6/conf/${if}/$1 $2
+		fi
+	fi
+}
+
+function remap_inout () {
+	outrule=""
+	while [ -n "$1" ]; do
+		case $1 in
+			dport)
+				new=sport
+				;;
+			sport)
+				new=dport
+				;;
+			daddr)
+				new=saddr
+				;;
+			saddr)
+				new=daddr
+				;;
+			iif)
+				new=oif
+				;;
+			oif)
+				new=iif
+				;;
+			if)
+				new=of
+				;;
+			of)
+				new='if'
+				;;
+			iifname)
+				new=oifname
+				;;
+			oifname)
+				new=iifname
+				;;
+			iiftype)
+				new=oiftype
+				;;
+			oiftype)
+				new=iiftype
+				;;
+			iifgroup)
+				new=oifgroup
+				;;
+			oifgroup)
+				new=iifgroup
+				;;
+			*)
+				new=$1
+		esac
+		outrule="$outrule $new"
+		shift
+	done
+	rule=$outrule
+}
+function register {
+	IMPORTED="$IMPORTED $RULESET"
+	has_registered=1
+	unset LOCAL_CHAIN
+	declare -A LOCAL_CHAIN
+	OLD_CHAIN=$CHAIN
+	CHAIN=local
+}
+
+function import  {
+	local RULENAME i
+	LANG=C  # needed to fix bash counting lower case letters in an [A-Z]
+	case $1 in
+		[a-z]*)
+			# Assume anything beginning with a lowercase is
+			# a builtin
+			return
+			;;
+		"")
+			return
+			;;
+		*)
+			for i in $IMPORTED; do
+				if [ "$1" == "$i" ]; then
+					rule="jump $1"
+				return
+			fi
+			done
+			has_registered=0
+			RULESET=$1
+			. ruleset.d/${1,,}.rule
+			subsubstatus Loaded ${1}
+			if [ $has_registered -ne 0 ]; then
+				echo "  chain $1 {" >> $OF
+				for i in "${LOCAL_CHAIN[@]}"; do
+					echo "    $i" >> $OF
+				done
+				echo "  }" >> $OF
+				CHAIN=$OLD_CHAIN
+				rule="jump $1";
+			else
+				rule="";
+			fi
+	esac
+}
+
+function nft(){
+	rule="$@"
+	import $1
+
+	case $CHAIN in
+		in)
+			IN+=("$rule")
+			;;
+		out)
+			OUT+=("$rule")
+			;;
+		inout)
+			IN+=("$rule")
+			remap_inout $rule
+			OUT+=("$rule")
+			;;
+		forward-in)
+			re="(.*)\<accept\>(.*)"
+			# Replace a non terminator accept with return
+			if [[ "$@" =~ $re ]]; then
+				rule="${BASH_REMATCH[1]} return ${BASH_REMATCH[2]}"
+			fi
+			FWD_IN+=("$rule")
+			;;
+		forward-out)
+			FWD_OUT+=("$rule")
+			;;
+		forward)
+			OLD_RULE="$rule"
+			re="(.*)\<accept\>(.*)"
+			# Replace a non terminator accept with return
+			if [[ "$@" =~ $re ]]; then
+				rule="${BASH_REMATCH[1]} return ${BASH_REMATCH[2]}"
+			fi
+			FWD_IN+=("$rule")
+
+			rule=$OLD_RULE
+			remap_inout $rule
+			FWD_OUT+=("$rule")
+			;;
+		prerouting)
+			PRE_ROUTE+=("$rule")
+			;;
+		postrouting)
+			POST_ROUTE+=("$rule")
+			;;
+		host)
+			IN+=("jump localhost_input")
+			OUT+=("jump localhost_output")
+			;;
+		host-in)
+			IN+=("jump localhost_input")
+			;;
+		host-out)
+			OUT+=("jump localhost_output")
+			;;
+		local)
+			LOCAL_CHAIN+=("$rule")
+			;;
+		*)
+			echo "Error at ${BASH_SOURCE[1]}:${BASH_LINENO[1]} Unknown chain '$CHAIN'"
+			exit -1
+	esac
+}
+
+function policy(){
+	CHAIN=$1
+	shift
+
+	rule="$@"
+	
+	nft $rule
+}
+
+function load_interface_rules() {
+	if=$1
+	declare -a IN=()
+	declare -a OUT
+	declare -a FWD_IN
+	declare -a FWD_OUT
+	declare -a PRE_ROUTE
+	declare -a POST_ROUTE
+	
+	substatus $if
+
+	IFACE_FOUND=0
+	for i in $KERNEL_INTERFACES; do
+		if [ "$if" == "$i" ]; then
+			IFACE_FOUND=1
+			break
+		fi
+	done
+	if [ "$IFACE_FOUND" -eq 0 ]; then
+		case "$conf_missing" in
+			ifname)
+				INTERFACES_IFNAME+=($if)
+				VMAP_IFNAME=1
+				;;
+			lazy)
+				subsubstatus "Interface '$if' is missing: using ifname due to lazy"
+				INTERFACES_IFNAME+=($if)
+				VMAP_IFNAME=1
+				;;
+			ignore)
+				subsubstatus "Interface '$if' is missing: ingnoring (nft tables is likey to error)"
+				INTERFACES+=($if)
+				VMAP_IIF=1
+				;;
+			error)
+				subsubstatus "Interface '$if' is missing: stop on error requested"
+				exit -1
+				;;
+			withhold)
+				subsubstatus "Interface '$if' is missing: withheld"
+				return
+				;;
+			*)
+				echo "Unknown option '$conf_missing' for missing in bearwall2.conf"
+				exit -1
+		esac
+	else
+		if [ "$conf_missing" == "ifname" ]; then
+			VMAP_IFNAME=1
+			INTERFACES_IFNAME+=($if)
+		else
+			VMAP_IIF=1
+			INTERFACES+=($if)
+		fi
+	fi
+
+	. $CONFDIR/interfaces.d/${if}.if
+
+	if [ ${#IN[@]} -gt 0 ]; then
+		if [ "$if" != "localhost" ]; then
+			HOOK_INPUT=1
+			INPUT_IFACE+=($if)
+		fi
+		echo "  chain ${if}_input {" >> $OF
+		for i in "${IN[@]}"; do
+			echo "    $i" >> $OF
+		done
+		echo "  }" >> $OF
+	fi
+	if [ ${#OUT[@]} -gt 0 ]; then
+		if [ "$if" != "localhost" ]; then
+			HOOK_OUTPUT=1
+			OUTPUT_IFACE+=($if)
+		fi
+		echo "  chain ${if}_output{" >> $OF
+		for i in "${OUT[@]}"; do
+			echo "    $i" >> $OF
+		done
+		echo "  }" >> $OF
+	fi
+
+	# Beyond here is only for real interfaces
+	if [ "$if" = "localhost" ]; then
+		return
+	fi
+
+	if [ ${#FWD_IN[@]} -gt 0 ]; then
+		HOOK_FORWARD=1
+		FORWARD_IN_IFACE+=($if)
+		echo "  chain ${if}_fwd_in {" >> $OF
+		for i in "${FWD_IN[@]}"; do
+			echo "    $i" >> $OF
+		done
+		echo "  }" >> $OF
+	fi
+	if [ ${#FWD_OUT[@]} -gt 0 ]; then
+		HOOK_FORWARD=1
+		FORWARD_OUT_IFACE+=($if)
+		echo "  chain ${if}_fwd_out {" >> $OF
+		for i in "${FWD_OUT[@]}"; do
+			echo "    $i" >> $OF
+		done
+		echo "  }" >> $OF
+	fi
+	if [ ${#PREROUTING[@]} -gt 0 ]; then
+		HOOK_PREROUTING=1
+		PREROUTING_IFACE+=($if)
+		echo "  chain ${if}_prerouting {" >> $OF
+		for i in "${PREROUTING[@]}"; do
+			echo "    $i" >> $OF
+		done
+		echo "  }" >> $OF
+	fi
+	if [ ${#POSTROUTING[@]} -gt 0 ]; then
+		HOOK_POSTROUTING=1
+		POSTROUTING_IFACE+=($if)
+		echo "  chain ${if}_postrouting {" >> $OF
+		for i in "${POSTROUTING[@]}"; do
+			echo "    $i" >> $OF
+		done
+		echo "  }" >> $OF
+	fi
+
+}
+function build_vmap () {
+	REG=$1
+	shift
+	CHAIN=$1
+	shift
+	HOOK=$1
+	shift
+
+	case $HOOK in
+		input|prerouting)
+			map_iif=iif
+			map_ifname=iifname
+			;;
+		output|postrouting)
+			map_iif=oif
+			map_ifname=oifname
+			;;
+		*)
+			echo "FATAL: HOOK unknown to build_vmap"
+			exit -1
+	esac
+
+	if [ $REG -gt 0 ]; then
+		echo "  chain $CHAIN {" >> $OF
+		echo "    type filter hook $HOOK priority 0; policy drop;" >> $OF
+		
+		if [ "$VMAP_IIF" -eq 1 ]; then
+			echo "    meta $map_iif vmap {" >> $OF
+			for i in "$@"; do
+				for j in "${INTERFACES[@]}"; do
+					if [ "$j" == "$i" ]; then
+						echo "      $i: jump ${i}_$CHAIN," >> $OF
+						break
+					fi
+				done
+			done
+			echo "    }" >> $OF
+		fi
+		if [ "$VMAP_IFNAME" -eq 1 ]; then
+			echo "    meta $map_ifname vmap {" >> $OF
+			for i in "$@"; do
+				for j in "${INTERFACES_IFNAME[@]}"; do
+					if [ "$j" == "$i" ]; then
+						echo "      \"$i\": jump ${i}_$CHAIN," >> $OF
+						break
+					fi
+				done
+			done
+			echo "    }" >> $OF
+		fi
+
+		echo "  }" >> $OF
+	fi
+}
+function build_vmap_fwd () {
+	if [ $HOOK_FORWARD -gt 0 ]; then
+		echo "  chain forward {" >> $OF
+		echo "    type filter hook forward priority 0; policy drop;" >> $OF
+		if [ "$VMAP_IIF" -eq 1 ]; then
+			echo "    meta iif vmap {" >> $OF
+			for i in "${FORWARD_IN_IFACE[@]}"; do
+				for j in "${INTERFACES[@]}"; do
+					if [ "$j" == "$i" ]; then
+						echo "      $i: jump ${i}_fwd_in," >> $OF
+						break
+					fi
+				done
+			done
+			echo "    }" >> $OF
+		fi
+		if [ "$VMAP_IFNAME" -eq 1 ]; then
+			echo "    meta iifname vmap {" >> $OF
+			for i in "${FORWARD_IN_IFACE[@]}"; do
+				for j in "${INTERFACES_IFNAME[@]}"; do
+					if [ "$j" == "$i" ]; then
+						echo "      $i: jump ${i}_fwd_in," >> $OF
+						break
+					fi
+				done
+			done
+			echo "    }" >> $OF
+		fi
+
+		if [ "$VMAP_IIF" -eq 1 ]; then
+			echo "    meta oif vmap {" >> $OF
+			for i in "${FORWARD_OUT_IFACE[@]}"; do
+				for j in "${INTERFACES[@]}"; do
+					if [ "$j" == "$i" ]; then
+						echo "      $i: jump ${i}_fwd_out," >> $OF
+						break
+					fi
+				done
+			done
+			echo "    }" >> $OF
+		fi
+		if [ "$VMAP_IFNAME" -eq 1 ]; then
+			echo "    meta oifname vmap {" >> $OF
+			for i in "${FORWARD_OUT_IFACE[@]}"; do
+				for j in "${INTERFACES_IFNAME[@]}"; do
+					if [ "$j" == "$i" ]; then
+						echo "      $i: jump ${i}_fwd_out," >> $OF
+						break
+					fi
+				done
+			done
+			echo "    }" >> $OF
+		fi
+
+		echo "  }" >> $OF
+	fi
+}
