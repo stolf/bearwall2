@@ -1,0 +1,8 @@
+bearwall2 for Debian
+------------------
+
+Bearwall2 uses nftables-style rule syntax for defining policy whereas bearwall
+v1 used iptables-style syntax. Your old policy files will need to be updated to
+work with bearwall2.
+
+ -- Bearwall Maintainers <maintainers@bearwall.org>  Mon, 30 Mar 2020 16:00:00 +1300

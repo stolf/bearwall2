@@ -1,0 +1,23 @@
+Source: bearwall2
+Section: net
+Priority: optional
+Maintainer: Bearwall Maintainers <maintainers@bearwall.org>
+Build-Depends: debhelper (>= 10)
+Standards-Version: 3.9.8
+Homepage: https://bearwall.org
+#Vcs-Git: https://anonscm.debian.org/collab-maint/bearwall.git
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/bearwall.git
+
+Package: bearwall2
+Architecture: all
+Depends: ${misc:Depends}, nftables, iproute2
+Conflicts: bearwall
+Suggests: ulogd2
+Description: firewall script for building dual-stack nftables firewalls
+ Bearwall2 is a firewall builder that allows you to easily manage complex
+ security policy on a linux host by separating your policies into reusable
+ classes and rulesets.
+ .
+ Bearwall2 reads in your firewall policy, defined in Bash, and generates the
+ appropriate NFTABLES(8) chains and rules to implement consistent policy for a
+ dual-stacked host.
