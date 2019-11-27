@@ -1,7 +1,7 @@
 #
 # Example class suitable for using as localhost.if. localhost.if is a special
 # interface file which represents common configuration for this host and is
-# applied whenever an in interface uses the "policy host*" targets. 
+# applied whenever an in interface uses the "policy host*" targets.
 #
 # On a simple host you may choose not to include localhost.if and just use
 # all configuration on the interfaces, but when you have multiple public
@@ -13,7 +13,7 @@
 #
 # This file should only have in,out and inout policy types. All other types are
 # invalid for localhost policy
-# 
+#
 
 policy in STATEFUL
 
@@ -22,5 +22,5 @@ policy inout REJECT-MS
 policy out accept
 
 
-# This file should not confain any interface features as this is not a real
+# This file should not contain any interface features as this is not a real
 # interface.

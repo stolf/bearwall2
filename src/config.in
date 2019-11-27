@@ -58,7 +58,7 @@ conntrack=stateful
 # What should bearwall do when it comes across an interface that it has a
 # firewall definition for, but the interface does not exist on the host.
 #
-# By default bearwall uses a intrface matching mode where nftables matches all 
+# By default bearwall uses a intrface matching mode where nftables matches all
 # interface names to ifIndex and interfaces are matched by nftable at run time
 # using the inIndex only. This is a much faster way of operating, but resaults
 # in nftable errors on load if the interface does not exist. Bearwall can

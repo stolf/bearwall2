@@ -19,7 +19,7 @@ OF=$DATADIR/tmp/output.nftables
 FLUSH=0
 DRYRUN=0
 if [ $# -gt "0" ] ; then
-	case "$1" in 
+	case "$1" in
 		-v|--version)
 			echo "Bearwall2 version 2.0"
 			exit
@@ -110,7 +110,7 @@ done
 
 build_vmap $HOOK_INPUT input input ${INPUT_IFACE[@]}
 build_vmap $HOOK_OUTPUT output output ${OUTPUT_IFACE[@]}
-build_vmap_fwd 
+build_vmap_fwd
 build_vmap $HOOK_PREROUTING prerouting prerouting ${PREROUTING_IFACE[@]}
 build_vmap $HOOK_POSTROUTING postrouting postrouting ${POSTROUTING_IFACE[@]}
 echo "}" >> $OF

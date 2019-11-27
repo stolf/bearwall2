@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Common functions used in firewall rules. You must source this from a script
-# that has already setup IPTABLES!
+# that has already setup nftables!
 
 function change_feature() {
 	FC=`cat $1`
@@ -126,7 +126,7 @@ function register {
 
 function import  {
 	local RULENAME i
-	LANG=C  # needed to fix bash counting lower case letters in an [A-Z]
+	LANG=C	# needed to fix bash counting lower case letters in an [A-Z]
 	case $1 in
 		[a-z]*)
 			# Assume anything beginning with a lowercase is
@@ -231,7 +231,7 @@ function policy(){
 	shift
 
 	rule="$@"
-	
+
 	nft $rule
 }
 
@@ -243,7 +243,7 @@ function load_interface_rules() {
 	declare -a FWD_OUT
 	declare -a PRE_ROUTE
 	declare -a POST_ROUTE
-	
+
 	substatus $if
 
 	IFACE_FOUND=0
@@ -265,7 +265,7 @@ function load_interface_rules() {
 				VMAP_IFNAME=1
 				;;
 			ignore)
-				subsubstatus "Interface '$if' is missing: ingnoring (nft tables is likey to error)"
+				subsubstatus "Interface '$if' is missing: ignoring (nft tables is likely to error)"
 				INTERFACES+=($if)
 				VMAP_IIF=1
 				;;
@@ -384,7 +384,7 @@ function build_vmap () {
 	if [ $REG -gt 0 ]; then
 		echo "  chain $CHAIN {" >> $OF
 		echo "    type filter hook $HOOK priority 0; policy drop;" >> $OF
-		
+
 		if [ "$VMAP_IIF" -eq 1 ]; then
 			echo "    meta $map_iif vmap {" >> $OF
 			for i in "$@"; do
