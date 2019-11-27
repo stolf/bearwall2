@@ -20,7 +20,6 @@ MANDIR ?= $(SHARDIR)/man
 DATADIR ?= $(CACHEDIR)/$(PKGNAME)
 
 RULESET := $(wildcard ruleset.d/*)
-HOSTS := $(wildcard hosts.d/*)
 CLASSES := $(wildcard classes.d/*)
 INTERFACES := $(wildcard interfaces.d/*)
 SUPPORT := $(wildcard support/*)
@@ -72,13 +71,6 @@ install-conf: all
 
 	install -D --group=root --mode=644 --owner=root \
 		src/$(PKGNAME).conf $(DESTDIR)$(CONFDIR)/$(PKGNAME).conf
-
-	install -d --group=root --mode=755 --owner=root \
-		$(DESTDIR)$(CONFDIR)/hosts.d
-	for i in $(HOSTS); \
-		do install -D --group=root --mode=744 --owner=root \
-		$$i $(DESTDIR)$(CONFDIR)/$$i; \
-		done
 
 	install -d --group=root --mode=755 --owner=root \
 		$(DESTDIR)$(CONFDIR)/classes.d

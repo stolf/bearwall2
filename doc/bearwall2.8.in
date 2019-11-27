@@ -64,16 +64,6 @@ and
 .IR vpn .
 
 .TP
-.I @CONFDIR@/hosts.d/*.host
-The files in the
-.B hosts.d
-directory provide rules that apply to all packets on all interfaces.
-This may be useful if you want to do "type of service" differentiation.
-All these files will be loaded automatically each time the
-.B @PKGNAME@
-script is run.
-
-.TP
 .I @BASEDIR@/ruleset.d/*.rule
 The files in the
 .B ruleset.d
