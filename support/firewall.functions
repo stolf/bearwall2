@@ -182,6 +182,14 @@ function import {
 	return 0
 }
 
+function check_interface_file {
+	local interface_name=$1
+	if [ ! -f "${CONFDIR}/interfaces.d/${interface_name}.if" ]; then
+		echo "Interface file ${CONFDIR}/interfaces.d/${interface_name}.if is missing"
+		exit -1
+	fi
+}
+
 function nft(){
 	rule="$@"
 
@@ -241,13 +249,16 @@ function nft(){
 			POST_ROUTE+=("$rule")
 			;;
 		host)
+			check_interface_file localhost
 			IN+=("jump localhost_input")
 			OUT+=("jump localhost_output")
 			;;
 		host-in)
+			check_interface_file localhost
 			IN+=("jump localhost_input")
 			;;
 		host-out)
+			check_interface_file localhost
 			OUT+=("jump localhost_output")
 			;;
 		local)
@@ -415,6 +426,7 @@ function load_interface_rules() {
 		fi
 	fi
 
+	check_interface_file ${if}
 	. $CONFDIR/interfaces.d/${if}.if
 
 	if [ ${#IN[@]} -gt 0 ]; then
