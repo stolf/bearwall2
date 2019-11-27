@@ -11,7 +11,7 @@
 # like "policy in accept" or "policy out reject" so that interfaces can put
 # rules after the host policy if it chooses.
 #
-# This file should only have in,out and inout policy types. All other types are
+# This file should only have in, out and inout policy types. All other types are
 # invalid for localhost policy
 #
 

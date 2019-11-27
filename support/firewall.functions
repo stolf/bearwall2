@@ -254,19 +254,6 @@ function nft(){
 		postrouting)
 			POST_ROUTE+=("$rule")
 			;;
-		host)
-			check_interface_file localhost
-			IN+=("jump localhost_input")
-			OUT+=("jump localhost_output")
-			;;
-		host-in)
-			check_interface_file localhost
-			IN+=("jump localhost_input")
-			;;
-		host-out)
-			check_interface_file localhost
-			OUT+=("jump localhost_output")
-			;;
 		local)
 			LOCAL_CHAIN+=("$rule")
 			;;
@@ -282,9 +269,17 @@ function policy(){
 		shift
 	fi
 
-	local rule="$@"
-
-	nft $rule
+	if [ "${1}" == "host" ]; then
+		check_interface_file localhost
+		if [ "${CHAIN}" == "inout" ]; then
+			nft jump localhost_input
+			nft jump localhost_output
+		else
+			nft jump localhost_${CHAIN}put
+		fi
+	else
+		nft $@
+	fi
 }
 
 function policy_log(){
@@ -293,6 +288,20 @@ function policy_log(){
 		shift
 	fi
 
+	if [ "${1}" == "host" ]; then
+		check_interface_file localhost
+		if [ "${CHAIN}" == "inout" ]; then
+			nft_log jump localhost_input
+			nft_log jump localhost_output
+		else
+			nft_log jump localhost_${CHAIN}put
+		fi
+	else
+		nft_log $@
+	fi
+}
+
+function nft_log(){
 	local rule="$@"
 
 	local terminal_statements=(
@@ -379,9 +388,6 @@ function load_interface_rules() {
 		"forward"
 		"prerouting"
 		"postrouting"
-		"host"
-		"host-in"
-		"host-out"
 		"local"
 		)
 
