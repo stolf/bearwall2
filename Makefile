@@ -19,9 +19,6 @@ CONFDIR ?= $(ETCDIR)/$(PKGNAME)
 MANDIR ?= $(SHARDIR)/man
 DATADIR ?= $(CACHEDIR)/$(PKGNAME)
 
-RSYSLOG_SEARCH := "$(DESTDIR)/etc/rsyslog.d $(DESTDIR)/usr/etc/rsyslog.d $(DESTDIR)/usr/local/etc/rsyslog.d"
-LOGROTATE_SEARCH := "$(DESTDIR)/etc/logrotate.d $(DESTDIR)/usr/etc/logrotate.d $(DESTDIR)/usr/local/etc/logrotate.d"
-
 RULESET := $(wildcard ruleset.d/*)
 HOSTS := $(wildcard hosts.d/*)
 CLASSES := $(wildcard classes.d/*)
@@ -97,36 +94,6 @@ install-conf: all
 		$$i $(DESTDIR)$(CONFDIR)/$$i; \
 		done
 
-install-rsyslog-conf: all
-
-	for dir in "$(RSYSLOG_SEARCH)"; do \
-		if test -d "$$dir"; then \
-			if test -f "$$dir/$(PKGNAME).conf"; then \
-				install -D --group=root --mode=644 --owner=root \
-					src/rsyslog $$dir/$(PKGNAME).conf.dist; \
-			else \
-				install -D --group=root --mode=644 --owner=root \
-					src/rsyslog $$dir/$(PKGNAME).conf; \
-			fi; \
-			break; \
-		fi; \
-	done
-
-install-logrotate-conf: all
-
-	for dir in "$(LOGROTATE_SEARCH)"; do \
-		if test -d "$$dir"; then \
-			if test -f "$$dir/$(PKGNAME).conf"; then \
-				install -D --group=root --mode=644 --owner=root \
-					src/logrotate $$dir/$(PKGNAME).dist; \
-			else \
-				install -D --group=root --mode=644 --owner=root \
-					src/logrotate $$dir/$(PKGNAME); \
-			fi; \
-			break; \
-		fi; \
-	done
-
 install-doc: all
 
 	install -d --group=root --mode=755 --owner=root \
@@ -137,8 +104,6 @@ install-doc: all
 		doc/$(PKGNAME).8 $(DESTDIR)$(MANDIR)/man8
 
 install: install-bin install-conf install-doc install-data
-
-install-fragments: install-rsyslog-conf install-logrotate-conf
 
 .PHONY: clean all build-bearwall2 install install-bin install-conf install-doc
 
@@ -167,33 +132,20 @@ release:
 	@git archive master | tar -x -C $(tmpdir)/$(PKGNAME)-$(VERSION)
 	@sed -e 's#VERSION=".*"#VERSION="$(VERSION)"#g' \
 		-e 's#REVISION=".*"#REVISION="$(r)"#g' \
-		$(tmpdir)/$(PKGNAME)-$(VERSION)/src/bearwall2.in \
+		$(tmpdir)/$(PKGNAME)-$(VERSION)/src/bearwall.in \
 		> $(tmpdir)/$(PKGNAME)-$(VERSION)/src/$(PKGNAME).$$
 	@sed --in-place '/#---#---#---#/,$$d' \
 		$(tmpdir)/$(PKGNAME)-$(VERSION)/Makefile
 	@mv $(tmpdir)/$(PKGNAME)-$(VERSION)/src/$(PKGNAME).$$ \
-		$(tmpdir)/$(PKGNAME)-$(VERSION)/src/bearwall2.in
+		$(tmpdir)/$(PKGNAME)-$(VERSION)/src/bearwall.in
 	@cd $(tmpdir); tar cjf $(pwd)/$(PKGNAME)-$(VERSION).tar.bz2 \
 		$(PKGNAME)-$(VERSION)/
 	@cd $(tmpdir); tar czf $(pwd)/$(PKGNAME)-$(VERSION).tar.gz \
 		$(PKGNAME)-$(VERSION)/
 	@rm -rf $(tmpdir) $(tmpdir)/revision-info.sh
 
-codename := $(shell lsb_release -sc)
-debian_repo := https://github.com/jimmyish/bearwall-debian.git
-
 deb:
-	@rm -rf debian
-	if [ "$(codename)" = "squeeze" ]; then \
-                git clone -b squeeze $(debian_repo) debian; \
-	elif [ "$(codename)" = "precise" ]; then \
-                git clone -b squeeze $(debian_repo) debian; \
-        elif [ -x "/bin/systemd" ] || dpkg -s libsystemd0 > /dev/null 2>&1; then \
-                git clone -b master $(debian_repo) debian; \
-        else \
-                git clone -b sysvinit $(debian_repo) debian; \
-        fi
 	@mk-build-deps -i -r -t 'apt-get -f -y --force-yes'
-	@fakeroot debian/rules binary
+	@dpkg-buildpackage -b -us -uc -rfakeroot
 
 .PHONY: release build-rev
