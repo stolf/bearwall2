@@ -18,3 +18,17 @@ function trim() {
 	input_str="${input_str%"${input_str##*[![:space:]]}"}"
 	echo -n "${input_str}"
 }
+
+array_contains () {
+	local array match in
+	match=$1
+	array="$2[@]"
+	in=1
+	for element in "${!array}"; do
+		if [[ ${element} == "${match}" ]]; then
+			in=0
+			break
+		fi
+	done
+	return ${in}
+}

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e -o pipefail
+
 BASEDIR=@BASEDIR@
 CONFDIR=@CONFDIR@
 DATADIR=@DATADIR@
@@ -15,7 +17,7 @@ DRYRUN=0
 if [ $# -gt "0" ] ; then
 	case "$1" in
 		-v|--version)
-			echo "Bearwall2 version 2.0"
+			echo "Bearwall2 version ${VERSION}"
 			exit
 			;;
 		-f|--flush)
@@ -25,7 +27,7 @@ if [ $# -gt "0" ] ; then
 			DRYRUN=1
 			;;
 		-h|--help)
-			echo "Usage: $(basename $0) -h |-v | -f | -d"
+			echo "Usage: $(basename "${0}") -h |-v | -f | -d"
 			echo ""
 			echo "Options:"
 			echo "	* -h|--help	Display help"
@@ -36,7 +38,7 @@ if [ $# -gt "0" ] ; then
 			exit
 			;;
 		*)
-			echo "$(basename $0) does not understand ${1}"
+			echo "$(basename "${0}") does not understand ${1}"
 			exit
 			;;
 	esac
@@ -56,8 +58,8 @@ if [ ! -f "$CONFDIR/bearwall2.conf" ]; then
 fi
 while read line; do
 	if [[ "$line" =~ ^[^#]*= ]]; then
-		k=`echo $line | cut -d'=' -f 1`
-		v=`echo $line | cut -d'=' -f 2-`
+		k=$(echo "${line}" | cut -d'=' -f 1)
+		v=$(echo "${line}" | cut -d'=' -f 2-)
 		export $"conf_${k}"=$v
 	fi
 done < $CONFDIR/bearwall2.conf
@@ -68,14 +70,16 @@ cd $BASEDIR
 
 # Check we actually have interface configuration before we start
 if [ -d $CONFDIR/interfaces.d/ ]; then
-	INTFILES=`(ls -1 $CONFDIR/interfaces.d/*.if 2>/dev/null || true) | wc -l`
-	if [ $INTFILES -eq 0 ] ; then
-		echo No interfaces defined in $CONFDIR/interfaces.d, aborting.
-		exit
+	INTFILES=$(
+		(ls -1 ${CONFDIR}/interfaces.d/*.if 2>/dev/null || true) | wc -l
+	)
+	if [ "${INTFILES}" -eq 0 ] ; then
+		echo "No interfaces defined in $CONFDIR/interfaces.d, aborting."
+		exit 0
 	fi
 else
-	echo No interfaces.d directory in $CONFDIR/, aborting.
-	exit
+	echo "No interfaces.d directory in $CONFDIR/, aborting."
+	exit 0
 fi
 
 # User is requesting we kill the firewall, not load it.
@@ -92,15 +96,13 @@ HOOK_POSTROUTING=0
 HOOK_INPUT=0
 HOOK_OUTPUT=0
 HOOK_FORWARD=0
-HOOK_RAW=0
-COMPRESS_FORWARD=1
 VMAP_IIF=0
 VMAP_IFNAME=0
 declare -a INPUT_IFACE=()
 
 declare -a INTERFACES
 
-KERNEL_INTERFACES=`ip -o link | sed 's/^[0-9]\+: \([a-zA-Z0-9_\.-]*\).*$/\1/'`
+KERNEL_INTERFACES=$(ip -o link | sed 's/^[0-9]\+: \([a-zA-Z0-9_\.-]*\).*$/\1/')
 KERNEL_INTERFACES="localhost $KERNEL_INTERFACES"
 
 # This is the meat of the script.
@@ -109,31 +111,31 @@ KERNEL_INTERFACES="localhost $KERNEL_INTERFACES"
 #  "if-postrouting-out"
 #  Then source the file in that directory.
 # most of your rules will be defined in these files
-echo "flush ruleset" > $OF
-echo "table inet bearwall {" >> $OF
+echo "flush ruleset" > "${OF}"
+echo "table inet bearwall {" >> "${OF}"
 
 # Deal with any conf_conntrack options
 . support/notrack
 
 status Configuring interfaces
 for intf in $CONFDIR/interfaces.d/*.if; do
-	if=$(basename $intf| sed s/\.if$//)
+	if=$(basename "${intf}" | sed s/\.if$//)
 
-	load_interface_rules $if
+	load_interface_rules "${if}"
 done
 
-build_vmap $HOOK_INPUT input input ${INPUT_IFACE[@]}
-build_vmap $HOOK_OUTPUT output output ${OUTPUT_IFACE[@]}
+build_vmap ${HOOK_INPUT} input input "${INPUT_IFACE[@]}"
+build_vmap ${HOOK_OUTPUT} output output "${OUTPUT_IFACE[@]}"
 build_vmap_fwd
-build_vmap $HOOK_PREROUTING prerouting prerouting ${PREROUTING_IFACE[@]}
-build_vmap $HOOK_POSTROUTING postrouting postrouting ${POSTROUTING_IFACE[@]}
-echo "}" >> $OF
+build_vmap ${HOOK_PREROUTING} prerouting prerouting "${PREROUTING_IFACE[@]}"
+build_vmap ${HOOK_POSTROUTING} postrouting postrouting "${POSTROUTING_IFACE[@]}"
+echo "}" >> "${OF}"
 
 if [ "$DRYRUN" -eq 0 ]; then
 	status "Doing atomic load"
 	substatus "invoking nftables (nft)"
-	/usr/sbin/nft -f $OF
+	/usr/sbin/nft -f "${OF}"
 else
 	status "Dryrun mode, not loading firewall"
-	substatus "nftables file found at $OF"
+	substatus "nftables file found at ${OF}"
 fi
