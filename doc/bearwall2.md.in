@@ -44,8 +44,9 @@ match the desired policy for your host.
     Typically you would create a symlink (for example, named *eth0.if*) that
     points to one of the templates in **classes.d** (such as *external*).
 
-    You can also apply policy to every interface on a machine by adding those
-    policies to a *localhost.if* file.
+    You can also apply common policy to multiple interfaces on a machine by
+    adding those policies to a *localhost.if* file. See the **HOST RULES**
+    section for more details.
 
 The following directories do not need to be modified unless you
 want to change the default behaviour of the firewall.
@@ -106,13 +107,22 @@ This syntax of the interface rule file is as follows:
 # HOST RULES
 
 In the same way we can apply policies to individual interfaces, we can also
-apply policy to all interfaces on the machine.
+apply common policy to multiple interfaces on the machine.
 
 This is done by creating a special *localhost.if* file in
 **@CONFDIR@/interface.d/**.
 
-The syntax for this file is the same as an interface rule file.
+The syntax for this file is the same as an interface rule file, however there is
+one limitation: rules can only be added to the in and out chains.
+
 Take a look at **@CONFDIR@/classes.d/host** for an example host rule file.
+
+Once we have defined our host policy, we need to apply this to some interfaces.
+We can do this by adding a special policy to our *interface*.if files:
+
+```
+policy inout host
+```
 
 # RULESETS
 

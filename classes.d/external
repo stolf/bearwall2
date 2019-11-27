@@ -5,8 +5,12 @@
 # All traffic leaving via this interface is MASQUERADED
 #
 
-# Apply the host policy that we apply to all ports
-policy host
+# Apply common host policy (from localhost.if) to in & out direction
+#policy inout host
+# Apply common host policy (from localhost.if) to in direction
+#policy in host
+# Apply common host policy (from localhost.if) to out direction
+#policy out host
 
 # Host apply default rules after host policy
 policy in reject
