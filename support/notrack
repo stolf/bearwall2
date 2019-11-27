@@ -28,7 +28,7 @@ case "$conf_conntrack" in
 		echo "    }" >> $OF
 		echo "  }" >> $OF
 
-		# Load hook and notrack any packets not 
+		# Load hook and notrack any packets not
 		echo "  chain bw_notrack {" >> $OF
 		echo "    type filter hook prerouting priority -300; policy accept;" >> $OF
 		echo "    ip daddr @notrack_v4 accept" >> $OF
