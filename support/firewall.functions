@@ -235,6 +235,26 @@ function policy(){
 	nft $rule
 }
 
+function log(){
+	local prefix=$1
+	shift
+
+    case "${conf_logging}" in
+        syslog)
+            echo "log prefix \"$prefix\" flags all limit rate 5/second"
+            ;;
+        nflog)
+            echo "log prefix \"$prefix\" group 0 limit rate 5/second"
+            ;;
+        none)
+            ;;
+        *)
+            echo "Unknown option '${conf_logging}' for logging in bearwall.conf"
+            exit -1
+    esac
+
+}
+
 function load_interface_rules() {
 	if=$1
 	declare -a IN=()
@@ -410,7 +430,9 @@ function build_vmap () {
 			echo "    }" >> $OF
 		fi
 
-		echo "  }" >> $OF
+		echo -n "	 " >> $OF
+		log "FW/End of $CHAIN: " >> $OF
+		echo "	}" >> $OF
 	fi
 }
 function build_vmap_fwd () {
@@ -467,6 +489,8 @@ function build_vmap_fwd () {
 			echo "    }" >> $OF
 		fi
 
-		echo "  }" >> $OF
+		echo -n "	 " >> $OF
+		log "FW/End of forward: " >> $OF
+		echo "	}" >> $OF
 	fi
 }
