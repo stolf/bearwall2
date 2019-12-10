@@ -39,6 +39,10 @@ fi
 
 # Parse configuration file
 # Configuration variables can be accessed as conf_KEY
+if [ ! -f "$CONFDIR/bearwall2.conf" ]; then
+	echo "No configuration file found at ${CONFDIR}/bearwall2.conf, aborting."
+	exit -1
+fi
 while read line; do
 	if [[ "$line" =~ ^[^#]*= ]]; then
 		k=`echo $line | cut -d'=' -f 1`
