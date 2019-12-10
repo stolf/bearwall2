@@ -56,9 +56,8 @@ cd $BASEDIR
 . support/firewall.functions
 
 # Check we actually have interface configuration before we start
-
 if [ -d $CONFDIR/interfaces.d/ ]; then
-	INTFILES=`ls -1 $CONFDIR/interfaces.d/*.if 2>/dev/null | wc -l`
+	INTFILES=`(ls -1 $CONFDIR/interfaces.d/*.if 2>/dev/null || true) | wc -l`
 	if [ $INTFILES -eq 0 ] ; then
 		echo No interfaces defined in $CONFDIR/interfaces.d, aborting.
 		exit
