@@ -260,8 +260,10 @@ function nft(){
 }
 
 function policy(){
-	CHAIN=$1
-	shift
+	if [[ " ${CHAINS[@]} " =~ " ${1} " ]]; then
+		CHAIN=$1
+		shift
+	fi
 
 	local rule="$@"
 
@@ -269,6 +271,11 @@ function policy(){
 }
 
 function policy_log(){
+	if [[ " ${CHAINS[@]} " =~ " ${1} " ]]; then
+		CHAIN=$1
+		shift
+	fi
+
 	local rule="$@"
 
 	local terminal_statements=(
@@ -344,6 +351,22 @@ function load_interface_rules() {
 	declare -a FWD_OUT
 	declare -a PRE_ROUTE
 	declare -a POST_ROUTE
+
+	# List of valid chains
+	CHAINS=(
+		"in"
+		"out"
+		"inout"
+		"forward-in"
+		"forward-out"
+		"forward"
+		"prerouting"
+		"postrouting"
+		"host"
+		"host-in"
+		"host-out"
+		"local"
+		)
 
 	substatus $if
 

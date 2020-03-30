@@ -17,7 +17,7 @@
 
 register
 
-nft udp dport { 137,138,139,445,5554,9996} reject
-nft tcp dport { 137,138,139,445,5554,9996} reject
-nft udp sport { 137,138,139,445,5554,9996} reject
-nft tcp sport { 137,138,139,445,5554,9996} reject
+policy_log udp dport { 137,138,139,445,5554,9996} reject
+policy_log tcp dport { 137,138,139,445,5554,9996} reject
+policy_log udp sport { 137,138,139,445,5554,9996} reject
+policy_log tcp sport { 137,138,139,445,5554,9996} reject
