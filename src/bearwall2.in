@@ -9,12 +9,6 @@ DATADIR=@DATADIR@
 VERSION="2.00"
 REVISION="HEAD"
 
-# flush the datadir
-rm -rf $DATADIR/tmp
-mkdir -p $DATADIR/tmp
-
-OF=$DATADIR/tmp/output.nftables
-
 # Command line arguments
 FLUSH=0
 DRYRUN=0
@@ -30,12 +24,29 @@ if [ $# -gt "0" ] ; then
 		-d|--dry-run)
 			DRYRUN=1
 			;;
+		-h|--help)
+			echo "Usage: $(basename $0) -h |-v | -f | -d"
+			echo ""
+			echo "Options:"
+			echo "	* -h|--help	Display help"
+			echo "	* -v|--version	Show version"
+			echo "	* -d|--dry-run	Generate firewall rules, but don't install them"
+			echo "	* -f|--flush	Remove current firewall rules"
+			echo "	* If run with no arguments bearwall will start as normal and install firewall rules"
+			exit
+			;;
 		*)
-			echo $(basename $0) takes no options
+			echo "$(basename $0) does not understand ${1}"
 			exit
 			;;
 	esac
 fi
+
+# flush the datadir
+rm -rf $DATADIR/tmp
+mkdir -p $DATADIR/tmp
+
+OF=$DATADIR/tmp/output.nftables
 
 # Parse configuration file
 # Configuration variables can be accessed as conf_KEY
