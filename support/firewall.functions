@@ -263,29 +263,77 @@ function policy(){
 	CHAIN=$1
 	shift
 
-	rule="$@"
+	local rule="$@"
+
+	nft $rule
+}
+
+function policy_log(){
+	local rule="$@"
+
+	local terminal_statements=(
+		"accept"
+		"drop"
+		"reject"
+		"queue"
+		"continue"
+		"return"
+		"jump"
+		"goto"
+		)
+
+	local log_prefix=""
+	if [ ! -z "${RULESET}" ]; then
+		log_prefix+="${RULESET}"
+	else
+		log_prefix+="${if}_${CHAIN}"
+	fi
+
+	local rule_array=(${rule})
+
+	# Walk rule in reverse word order, looking for a terminal statement,
+	# if we find one, put our log rule before it
+	local log_rule
+	local terminal_found=0
+	local rule_array_size=${#rule_array[@]}-1
+	for (( i=${rule_array_size}; i>=0 ; i-- )); do
+		for terminal_statement in ${terminal_statements[@]}; do
+			if [ "${rule_array[i]}" == "${terminal_statement}" ]; then
+				terminal_found=1
+				local start_of_rule=("${rule_array[@]:0:$i}")
+				local end_of_rule=("${rule_array[@]:$i}")
+				log_rule=$(log "${log_prefix}/${terminal_statement}")
+				rule="${start_of_rule[@]} ${log_rule} ${end_of_rule[@]}"
+				break
+			fi
+		done
+	done
+
+	# If there's no terminal statement, just add the log statement to the end
+	if [ "${terminal_found}" -eq 0 ]; then
+		log_rule=$(log "${log_prefix}")
+		rule="${rule} ${log_rule}"
+	fi
 
 	nft $rule
 }
 
 function log(){
 	local prefix=$1
-	shift
 
-    case "${conf_logging}" in
-        syslog)
-            echo "log prefix \"$prefix\" flags all limit rate 5/second"
-            ;;
-        nflog)
-            echo "log prefix \"$prefix\" group 0 limit rate 5/second"
-            ;;
-        none)
-            ;;
-        *)
-            echo "Unknown option '${conf_logging}' for logging in bearwall.conf"
-            exit -1
-    esac
-
+	case "${conf_logging}" in
+		syslog)
+			echo "log prefix \"FW/$prefix: \" flags all limit rate 5/second"
+			;;
+		nflog)
+			echo "log prefix \"FW/$prefix\" group 0 limit rate 5/second"
+			;;
+		none)
+			;;
+		*)
+			echo "Unknown option '${conf_logging}' for logging in bearwall.conf"
+			exit -1
+	esac
 }
 
 function load_interface_rules() {
