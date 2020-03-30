@@ -110,7 +110,11 @@ function remap_inout () {
 			*)
 				new=$1
 		esac
-		outrule="$outrule $new"
+		if [ ! -z "${outrule}" ]; then
+			outrule="$outrule $new"
+		else
+			outrule="$new"
+		fi
 		shift
 	done
 	rule=$outrule
