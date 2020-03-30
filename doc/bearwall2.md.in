@@ -1,0 +1,262 @@
+% @PKGNAME@(8)
+
+# NAME
+
+@PKGNAME@ - firewall builder for configuring a dual-stack nftables firewall
+
+# SYNOPSIS
+
+@PKGNAME@ *OPTION*
+
+# OPTIONS
+
+-h, \--help
+:   Display help
+
+-v, \--version
+:   Display current version
+
+-f, \--flush
+:   Remove current firewall rules
+
+-d, \--dry-run
+:   Generate firewall rules, but don't install them
+
+# DESCRIPTION
+
+@PKGNAME@ is a firewall builder that allows you to easily manage complex
+security policy on a linux host by separating your policies into reusable
+classes and rulesets.
+
+@PKGNAME@ reads in your firewall policy, defined in Bash, and generates the
+appropriate `nftables(8)` chains and rules to implement consistent policy for a
+dual-stacked host.
+
+# FILES
+
+The following directories contains policy files that will need to be created to
+match the desired policy for your host.
+
+`@CONFDIR@/interfaces.d/*.if`
+:   The **interfaces.d** directory contains a file for each interface you want
+    configured.
+
+    Typically you would create a symlink (for example, named *eth0.if*) that
+    points to one of the templates in **classes.d** (such as *external*).
+
+    You can also apply policy to every interface on a machine by adding those
+    policies to a *localhost.if* file.
+
+The following directories do not need to be modified unless you
+want to change the default behaviour of the firewall.
+
+`@CONFDIR@/classes.d/*`\
+:   The **classes.d** directory contains templates for different types of interfaces.
+
+    Example templates include *external*, *internal*, *loopback* and *vpn*.
+
+`@BASEDIR@/ruleset.d/*.rule`
+:   Default rulesets shipped with @PKGNAME@ are stored in this directory.
+
+`@CONFDIR@/ruleset.d/*.rule`
+:   Users can write their own rulesets and add them into this directory.
+
+    See the **RULESETS** section for more details on the default rulesets.
+
+# INTERFACE RULES
+
+An interface rule file allows you to apply policy to an individual network
+interface. Interface rule files are placed in **@CONFDIR@/interface.d/**.
+The file name is the interface name followed by *.if*, e.g. eth0.if.
+
+An interface rule file is a list of policies and features that should be enabled
+on that interface. Policies are applied in order, top to bottom, so be careful
+what order you specify the rules in.
+
+This syntax of the interface rule file is as follows:
+
+**policy** *chain* *match* *action*
+:   Where *chain* is one of **in**, **out**, **inout**, **forward-in**,
+    **forward-out**, **prerouting**, or **postrouting**.
+
+    When writing a **RULESET**, *chain* may be omitted so that the policy could
+    be applied to any chain.
+
+    Where *match* is either a *named rule-set* (in all capital letters, without
+    the ".rule"), or a standard `nftables(8)` expression
+    (such as **tcp dport ssh**).
+
+    Where *action* is a standard `nftables(8)` statement such as **accept**,
+    **drop**, **reject**, etc.
+
+**policy\_log** *chain* *match* *action*
+:   This is a different variant of **policy** that causes packets that match the
+    policy to be logged as well as having the *action* applied.
+
+    For more information see the **LOGGING** section.
+
+    Note: *chain*, *match* and *action* are the same as for **policy**.
+
+**if\_feature** *feature* *value*
+:   Where *feature* is one of the settings supported by your kernel (look in
+    /proc/sys/net/ipv4/conf/all/ and /proc/sys/net/ipv6/conf/all/)
+
+    Where *value* is the appropriate integer for that feature.
+
+# HOST RULES
+
+In the same way we can apply policies to individual interfaces, we can also
+apply policy to all interfaces on the machine.
+
+This is done by creating a special *localhost.if* file in
+**@CONFDIR@/interface.d/**.
+
+The syntax for this file is the same as an interface rule file.
+Take a look at **@CONFDIR@/classes.d/host** for an example host rule file.
+
+# RULESETS
+
+@PKGNAME@ ships a few default rulesets that we find useful that you can use
+as part of your firewall configuration:
+
+icmp-safe.rule
+:   Accept safe types of ICMP/ICMPv6 messages.
+
+martians.rule
+:   Reject packets with a source or destination address in private RFC1918 space.
+
+reject-ms.rule
+:   Reject ports used by Microsoft protocols that have been affected by worms
+    or other vulnerabilities in the past.
+
+ssh-limit.rule
+:   Limit ssh connection attempts to 10 per second per host.
+
+stateful.rule
+:   Use conntrack state to allow connections to pass.
+
+If you want to provide your own rulesets, put them in **@CONFDIR@/ruleset.d**
+and reference them like you would a normal ruleset.
+Check any of the above default rulesets for an example of how to write one.
+
+# EXAMPLES
+
+## Getting started with @PKGNAME@
+
+After installing @PKGNAME@, getting your first firewall policies applied
+is quite straight-forward.
+
+We will be creating firewall policy for *lo* (used for loopback traffic on the
+machine) and *eth0* (external Internet-facing network interface).
+
+We will be using two predefined classes *loopback* for *lo* and *external* for
+*eth0*. Creating a symlink from the class to the interface rule file allows us
+to re-use the class for multiple interfaces.
+
+```
+$ ln -s /etc/bearwall2/classes.d/loopback /etc/bearwall2/interfaces.d/lo.if
+$ ln -s /etc/bearwall2/classes.d/external /etc/bearwall2/interfaces.d/eth0.if
+```
+
+If you want to see what rules are going to applied look at the contents of these
+two files.
+
+Note: If you are remotely logged into the machine you are running these commands
+on, make sure you have edited the *external* class and have a policy that allows
+that traffic.
+
+To apply the new policies, simply run the @PKGNAME@ command:
+
+```
+$ @PKGNAME@
+```
+
+For more examples, see the sample files in the **@CONFDIR@/classes.d** directory.
+
+## Writing rules for dual-stack hosts
+
+In nftables, both IPv4 and IPv6 packets will traverse the same set of rules.
+
+Rules specifically targeting IPv4 packets won't affect IPv6 packets
+(and vice versa).
+
+Rules that don't match IPv4 or IPv6 specifically will affect
+both kinds of packets.
+
+Some examples of @PKGNAME@ rules that demonstrate this behaviour:
+
+```
+# this rule only affects IPv4 packets
+policy in ip version 4 udp dport 40 accept
+
+# this rule only affects IPv6 packets
+policy in ip6 version 6 udp dport 60 accept
+
+# this rules affects both IPv4/IPv6 packets
+policy in udp dport 100 accept
+```
+
+## More Advanced Example
+
+This creates an empty ruleset with no rules in it, and then we can use
+nftables as normal to add/delete rules to the chain.
+
+In a newly created **ruleset.d/ssh\_syn.rule**:
+
+```
+# automatically create an empty 'ssh_syn' chain we can use
+register
+```
+
+And in our **@CONFDIR@/interfaces.d/eth0.if** file add a policy that jumps to
+this empty chain:
+
+```
+policy in tcp dport ssh tcp flags syn SSH_SYN
+```
+
+Then to add an ip address that we do not want to have ssh access:
+
+```
+$ sudo nft add rule inet bearwall ssh_syn ip saddr 192.168.0.1/32 drop
+```
+
+# LOGGING
+
+
+@PKGNAME@ will log packets matched by any rule created by using the
+**policy\_log** statement, as well as any packet dropped by the rulesets
+provided with @PKGNAME@.
+
+If you see any log messages with the prefix `End of forward`, this means you
+have packets falling through the firewall chain without having any action
+applied to them.
+
+By default, @PKGNAME@ ships with firewall packet logging disabled. This is
+because the default destination for packet logging is dmesg which isn't ideal.
+
+We can improve this by using the userspace daemon ulog2 to log packets to a
+file instead of dmesg.
+
+To do this, first install ulog2:
+
+```
+$ sudo apt-get install ulogd2
+```
+
+Then we need to tell @PKGNAME@ where to log by editing
+**@CONFDIR@/@PKGNAME@.conf** and setting: **logging=nflog**.
+
+By default ulog2 will log to **/var/log/ulog/syslogemu.log**. You can configure
+the destination ulogd2 logs to by editing **/etc/ulogd.conf**.
+
+# SEE ALSO
+
+`nftables(8)`
+
+# NOTES
+
+Bearwall was originally written by Perry Lorier and licensed under the
+GPL (v2 or higher).
+
+Bearwall2 is written by Chris Browning and Brad Cowie.
