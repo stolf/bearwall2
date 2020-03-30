@@ -36,11 +36,12 @@ build-bearwall2:
 	@sed -e s#@BASEDIR@#$(subst -,\\\\-,$(BASEDIR))#g \
 		-e s#@CONFDIR@#$(subst -,\\\\-,$(CONFDIR))#g \
 		-e s#@PKGNAME@#$(subst -,\\\\-,$(PKGNAME))#g \
-		doc/bearwall2.8.in \
-		>doc/$(PKGNAME).8
+		doc/bearwall2.md.in \
+		>doc/$(PKGNAME).md
+	pandoc -s -o doc/bearwall2.8 doc/bearwall2.md
 
 clean:
-	@rm -f src/$(PKGNAME) doc/$(PKGNAME).8 src/$(PKGNAME).conf
+	@rm -f src/$(PKGNAME) doc/$(PKGNAME).md doc/$(PKGNAME).8 src/$(PKGNAME).conf
 	@rm -f $(PKGNAME)-*.tar.*
 
 install-bin: all

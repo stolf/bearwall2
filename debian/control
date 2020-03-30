@@ -2,7 +2,7 @@ Source: bearwall2
 Section: net
 Priority: optional
 Maintainer: Bearwall Maintainers <maintainers@bearwall.org>
-Build-Depends: debhelper (>= 10)
+Build-Depends: debhelper (>= 10), pandoc
 Standards-Version: 3.9.8
 Homepage: https://bearwall.org
 #Vcs-Git: https://anonscm.debian.org/collab-maint/bearwall.git
