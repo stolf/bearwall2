@@ -162,6 +162,7 @@ function import {
 			nft ${matches} jump ${RULESET}
 
 			RULESET=""
+			CHAIN=""
 			return 0
 		fi
 	done
@@ -189,6 +190,7 @@ function import {
 	fi
 
 	RULESET=""
+	CHAIN=""
 	return 0
 }
 
