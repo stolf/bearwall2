@@ -358,7 +358,11 @@ function nft_log(){
 				local start_of_rule=("${rule_array[@]:0:$i}")
 				local end_of_rule=("${rule_array[@]:$i}")
 				log_rule=$(log "${log_prefix}/${terminal_statement}")
-				rule="${start_of_rule[*]} ${log_rule} ${end_of_rule[*]}"
+				if [ -z "${start_of_rule[*]}" ]; then
+					rule="${log_rule} ${end_of_rule[*]}"
+				else
+					rule="${start_of_rule[*]} ${log_rule} ${end_of_rule[*]}"
+				fi
 				break
 			fi
 		done
