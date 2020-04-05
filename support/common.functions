@@ -10,3 +10,11 @@ function subsubstatus() {
 	echo "    $*"
 }
 
+function trim() {
+	local input_str="$*"
+	# remove leading whitespace characters
+	input_str="${input_str#"${input_str%%[![:space:]]*}"}"
+	# remove trailing whitespace characters
+	input_str="${input_str%"${input_str##*[![:space:]]}"}"
+	echo -n "${input_str}"
+}

@@ -171,11 +171,11 @@ function import {
 
 	subsubstatus Loaded ${RULESET}
 	if [ ${HAS_REGISTERED} -eq 1 ]; then
-		echo "	  chain ${RULESET} {" >> $OF
+		echo "	chain ${RULESET} {" >> $OF
 		for i in "${LOCAL_CHAIN[@]}"; do
-			echo "		  $i" >> $OF
+			echo "		$i" >> $OF
 		done
-		echo "	  }" >> $OF
+		echo "	}" >> $OF
 		CHAIN=$OLD_CHAIN
 
 		# Add a jump rule to the new chain created for the registered ruleset
@@ -227,6 +227,7 @@ function nft(){
 			# Replace a non terminator accept with return
 			if [[ "$@" =~ $re ]]; then
 				rule="${BASH_REMATCH[1]} return ${BASH_REMATCH[2]}"
+				rule=$(trim ${rule})
 			fi
 			FWD_IN+=("$rule")
 			;;
@@ -239,6 +240,7 @@ function nft(){
 			# Replace a non terminator accept with return
 			if [[ "$@" =~ $re ]]; then
 				rule="${BASH_REMATCH[1]} return ${BASH_REMATCH[2]}"
+				rule=$(trim ${rule})
 			fi
 			FWD_IN+=("$rule")
 
@@ -438,22 +440,22 @@ function load_interface_rules() {
 			HOOK_INPUT=1
 			INPUT_IFACE+=($if)
 		fi
-		echo "  chain ${if}_input {" >> $OF
+		echo "	chain ${if}_input {" >> $OF
 		for i in "${IN[@]}"; do
-			echo "    $i" >> $OF
+			echo "		$i" >> $OF
 		done
-		echo "  }" >> $OF
+		echo "	}" >> $OF
 	fi
 	if [ ${#OUT[@]} -gt 0 ]; then
 		if [ "$if" != "localhost" ]; then
 			HOOK_OUTPUT=1
 			OUTPUT_IFACE+=($if)
 		fi
-		echo "  chain ${if}_output{" >> $OF
+		echo "	chain ${if}_output {" >> $OF
 		for i in "${OUT[@]}"; do
-			echo "    $i" >> $OF
+			echo "		$i" >> $OF
 		done
-		echo "  }" >> $OF
+		echo "	}" >> $OF
 	fi
 
 	# Beyond here is only for real interfaces
@@ -464,38 +466,38 @@ function load_interface_rules() {
 	if [ ${#FWD_IN[@]} -gt 0 ]; then
 		HOOK_FORWARD=1
 		FORWARD_IN_IFACE+=($if)
-		echo "  chain ${if}_fwd_in {" >> $OF
+		echo "	chain ${if}_fwd_in {" >> $OF
 		for i in "${FWD_IN[@]}"; do
-			echo "    $i" >> $OF
+			echo "		$i" >> $OF
 		done
-		echo "  }" >> $OF
+		echo "	}" >> $OF
 	fi
 	if [ ${#FWD_OUT[@]} -gt 0 ]; then
 		HOOK_FORWARD=1
 		FORWARD_OUT_IFACE+=($if)
-		echo "  chain ${if}_fwd_out {" >> $OF
+		echo "	chain ${if}_fwd_out {" >> $OF
 		for i in "${FWD_OUT[@]}"; do
-			echo "    $i" >> $OF
+			echo "		$i" >> $OF
 		done
-		echo "  }" >> $OF
+		echo "	}" >> $OF
 	fi
 	if [ ${#PREROUTING[@]} -gt 0 ]; then
 		HOOK_PREROUTING=1
 		PREROUTING_IFACE+=($if)
-		echo "  chain ${if}_prerouting {" >> $OF
+		echo "	chain ${if}_prerouting {" >> $OF
 		for i in "${PREROUTING[@]}"; do
-			echo "    $i" >> $OF
+			echo "		$i" >> $OF
 		done
-		echo "  }" >> $OF
+		echo "	}" >> $OF
 	fi
 	if [ ${#POSTROUTING[@]} -gt 0 ]; then
 		HOOK_POSTROUTING=1
 		POSTROUTING_IFACE+=($if)
-		echo "  chain ${if}_postrouting {" >> $OF
+		echo "	chain ${if}_postrouting {" >> $OF
 		for i in "${POSTROUTING[@]}"; do
-			echo "    $i" >> $OF
+			echo "		$i" >> $OF
 		done
-		echo "  }" >> $OF
+		echo "	}" >> $OF
 	fi
 
 }
@@ -522,95 +524,99 @@ function build_vmap () {
 	esac
 
 	if [ $REG -gt 0 ]; then
-		echo "  chain $CHAIN {" >> $OF
-		echo "    type filter hook $HOOK priority 0; policy drop;" >> $OF
+		echo "	chain $CHAIN {" >> $OF
+		echo "		type filter hook $HOOK priority 0; policy drop;" >> $OF
 
 		if [ "$VMAP_IIF" -eq 1 ]; then
-			echo "    meta $map_iif vmap {" >> $OF
+			echo "		meta $map_iif vmap {" >> $OF
 			for i in "$@"; do
 				for j in "${INTERFACES[@]}"; do
 					if [ "$j" == "$i" ]; then
-						echo "      $i: jump ${i}_$CHAIN," >> $OF
+						echo "			$i: jump ${i}_$CHAIN," >> $OF
 						break
 					fi
 				done
 			done
-			echo "    }" >> $OF
+			echo "		}" >> $OF
 		fi
 		if [ "$VMAP_IFNAME" -eq 1 ]; then
-			echo "    meta $map_ifname vmap {" >> $OF
+			echo "		meta $map_ifname vmap {" >> $OF
 			for i in "$@"; do
 				for j in "${INTERFACES_IFNAME[@]}"; do
 					if [ "$j" == "$i" ]; then
-						echo "      \"$i\": jump ${i}_$CHAIN," >> $OF
+						echo "			\"$i\": jump ${i}_$CHAIN," >> $OF
 						break
 					fi
 				done
 			done
-			echo "    }" >> $OF
+			echo "		}" >> $OF
 		fi
 
-		echo -n "	 " >> $OF
-		log "FW/End of $CHAIN: " >> $OF
+		if [ "${conf_logging}" != "none" ]; then
+			echo -n "		" >> $OF
+			log "End of $CHAIN" >> $OF
+		fi
 		echo "	}" >> $OF
 	fi
 }
 function build_vmap_fwd () {
 	if [ $HOOK_FORWARD -gt 0 ]; then
-		echo "  chain forward {" >> $OF
-		echo "    type filter hook forward priority 0; policy drop;" >> $OF
+		echo "	chain forward {" >> $OF
+		echo "		type filter hook forward priority 0; policy drop;" >> $OF
 		if [ "$VMAP_IIF" -eq 1 ]; then
-			echo "    meta iif vmap {" >> $OF
+			echo "		meta iif vmap {" >> $OF
 			for i in "${FORWARD_IN_IFACE[@]}"; do
 				for j in "${INTERFACES[@]}"; do
 					if [ "$j" == "$i" ]; then
-						echo "      $i: jump ${i}_fwd_in," >> $OF
+						echo "			$i: jump ${i}_fwd_in," >> $OF
 						break
 					fi
 				done
 			done
-			echo "    }" >> $OF
+			echo "		}" >> $OF
 		fi
 		if [ "$VMAP_IFNAME" -eq 1 ]; then
-			echo "    meta iifname vmap {" >> $OF
+			echo "		meta iifname vmap {" >> $OF
 			for i in "${FORWARD_IN_IFACE[@]}"; do
 				for j in "${INTERFACES_IFNAME[@]}"; do
 					if [ "$j" == "$i" ]; then
-						echo "      $i: jump ${i}_fwd_in," >> $OF
+						echo "			$i: jump ${i}_fwd_in," >> $OF
 						break
 					fi
 				done
 			done
-			echo "    }" >> $OF
+			echo "		}" >> $OF
 		fi
 
 		if [ "$VMAP_IIF" -eq 1 ]; then
-			echo "    meta oif vmap {" >> $OF
+			echo "		meta oif vmap {" >> $OF
 			for i in "${FORWARD_OUT_IFACE[@]}"; do
 				for j in "${INTERFACES[@]}"; do
 					if [ "$j" == "$i" ]; then
-						echo "      $i: jump ${i}_fwd_out," >> $OF
+						echo "			$i: jump ${i}_fwd_out," >> $OF
 						break
 					fi
 				done
 			done
-			echo "    }" >> $OF
+			echo "		}" >> $OF
 		fi
 		if [ "$VMAP_IFNAME" -eq 1 ]; then
-			echo "    meta oifname vmap {" >> $OF
+			echo "		meta oifname vmap {" >> $OF
 			for i in "${FORWARD_OUT_IFACE[@]}"; do
 				for j in "${INTERFACES_IFNAME[@]}"; do
 					if [ "$j" == "$i" ]; then
-						echo "      $i: jump ${i}_fwd_out," >> $OF
+						echo "			$i: jump ${i}_fwd_out," >> $OF
 						break
 					fi
 				done
 			done
-			echo "    }" >> $OF
+			echo "		}" >> $OF
 		fi
 
-		echo -n "	 " >> $OF
-		log "FW/End of forward: " >> $OF
+		if [ "${conf_logging}" != "none" ]; then
+			echo -n "		" >> $OF
+			log "End of forward" >> $OF
+		fi
 		echo "	}" >> $OF
 	fi
 }
