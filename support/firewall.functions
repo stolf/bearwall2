@@ -158,6 +158,7 @@ function import  {
 			else
 				rule="";
 			fi
+			RULESET=""
 	esac
 }
 
