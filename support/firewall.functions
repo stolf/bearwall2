@@ -116,55 +116,87 @@ function remap_inout () {
 	rule=$outrule
 }
 function register {
-	IMPORTED="$IMPORTED $RULESET"
-	has_registered=1
+	# Add to list of registered rulesets
+	IMPORTED="${IMPORTED} ${RULESET}"
+	HAS_REGISTERED=1
 	unset LOCAL_CHAIN
 	declare -A LOCAL_CHAIN
 	OLD_CHAIN=$CHAIN
 	CHAIN=local
 }
 
-function import  {
-	local RULENAME i
+function import {
+	local i
+	local matches=$1
 	LANG=C	# needed to fix bash counting lower case letters in an [A-Z]
-	case $1 in
+	case $2 in
 		[a-z]*)
-			# Assume anything beginning with a lowercase is
-			# a builtin
-			return
+			# assume anything beginning with a lowercase is a builtin
+			return 1
+			;;
+		[0-9]*)
+			# assume anything beginning with a number is a builtin
+			return 1
 			;;
 		"")
-			return
+			return 1
 			;;
-		*)
-			for i in $IMPORTED; do
-				if [ "$1" == "$i" ]; then
-					rule="jump $1"
-				return
-			fi
-			done
-			has_registered=0
-			RULESET=$1
-			. ruleset.d/${1,,}.rule
-			subsubstatus Loaded ${1}
-			if [ $has_registered -ne 0 ]; then
-				echo "  chain $1 {" >> $OF
-				for i in "${LOCAL_CHAIN[@]}"; do
-					echo "    $i" >> $OF
-				done
-				echo "  }" >> $OF
-				CHAIN=$OLD_CHAIN
-				rule="jump $1";
-			else
-				rule="";
-			fi
-			RULESET=""
 	esac
+
+	RULESET=${2,,}
+	HAS_REGISTERED=0
+
+	for i in ${IMPORTED}; do
+		if [ "${RULESET}" == "$i" ]; then
+			# If this ruleset has already been registered, we can just jump to it
+			nft ${matches} jump ${RULESET}
+
+			RULESET=""
+			return 0
+		fi
+	done
+
+	if [ -f "${CONFDIR}/ruleset.d/${RULESET}.rule" ]; then
+		. ${CONFDIR}/ruleset.d/${RULESET}.rule
+	elif [ -f "ruleset.d/${RULESET}.rule" ]; then
+		. ruleset.d/${RULESET}.rule
+	else
+		echo "Unknown ruleset ${RULESET}, ${RULESET}.rule file not found in $(pwd)/ruleset.d/ or ${CONFDIR}/ruleset.d/"
+		exit -1
+	fi
+
+	subsubstatus Loaded ${RULESET}
+	if [ ${HAS_REGISTERED} -eq 1 ]; then
+		echo "	  chain ${RULESET} {" >> $OF
+		for i in "${LOCAL_CHAIN[@]}"; do
+			echo "		  $i" >> $OF
+		done
+		echo "	  }" >> $OF
+		CHAIN=$OLD_CHAIN
+
+		# Add a jump rule to the new chain created for the registered ruleset
+		nft ${matches} jump ${RULESET}
+	fi
+
+	RULESET=""
+	return 0
 }
 
 function nft(){
 	rule="$@"
-	import $1
+
+	if [ -z "${rule}" ]; then
+		return
+	fi
+
+	local matches=$(echo ${rule} | awk '{$NF=""; print $0}' | awk '{$1=$1};1')
+	local verdict=$(echo ${rule} | awk '{print $NF}')
+
+	# $action might actually point to a ruleset, try and import it
+	if import "${matches}" "${verdict}"; then
+		# If import was successful then we don't need to keep going
+		return
+	fi
 
 	case $CHAIN in
 		in)
