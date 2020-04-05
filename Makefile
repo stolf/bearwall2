@@ -86,6 +86,9 @@ install-conf: all
 		$$i $(DESTDIR)$(CONFDIR)/$$i; \
 		done
 
+	install -d --group=root --mode=755 --owner=root \
+		$(DESTDIR)$(CONFDIR)/ruleset.d
+
 install-doc: all
 
 	install -d --group=root --mode=755 --owner=root \
