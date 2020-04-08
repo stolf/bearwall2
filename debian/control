@@ -5,8 +5,8 @@ Maintainer: Bearwall Maintainers <maintainers@bearwall.org>
 Build-Depends: debhelper (>= 10), pandoc
 Standards-Version: 3.9.8
 Homepage: https://bearwall.org
-#Vcs-Git: https://anonscm.debian.org/collab-maint/bearwall.git
-#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/bearwall.git
+Vcs-Git: https://github.com/bearwall-firewall/bearwall2.git
+Vcs-Browser: https://github.com/bearwall-firewall/bearwall2
 
 Package: bearwall2
 Architecture: all
