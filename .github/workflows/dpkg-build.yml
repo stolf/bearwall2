@@ -1,0 +1,50 @@
+name: Debian Package Build
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.target }}
+    strategy:
+      matrix:
+        arch:
+          - amd64
+        target:
+            - "ubuntu:bionic"
+    steps:
+      - name: Install packages
+        run: |
+          apt-get update
+          apt-get -y upgrade
+          apt-get -y install devscripts dpkg-dev debhelper equivs
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Bump version
+        run: |
+          export DEBEMAIL='maintainers@bearwall.org'
+          export DEBFULLNAME='Bearwall Maintainers'
+          export git_version=${GITHUB_REF##*/}
+          export git_revision=${GITHUB_SHA}
+          debchange --newversion ${git_version} -b "New upstream release"
+          sed -i -e "s#VERSION=\".*\"#VERSION=\"${git_version}\"#g" src/bearwall2.in
+          sed -i -e "s#REVISION=\".*\"#REVISION=\"${git_revision}\"#g" src/bearwall2.in
+      - name: Build package
+        run: |
+          make deb
+      - name: Store package
+        run: |
+          mkdir -p packages/all
+          cp ../*.deb packages/all
+      - name: Publish package on bintray
+        uses: wanduow/action-bintray-upload-debian-packages@v1
+        with:
+          path: packages/
+          repo: bearwall/bearwall2
+          license: GPL-2.0
+          username: gizmoguy
+          api_key: ${{ secrets.BINTRAY_API_KEY }}

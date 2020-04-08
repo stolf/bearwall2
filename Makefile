@@ -1,5 +1,3 @@
-VERSION=2.00
-
 # PREFIX is where we will ultimately be installed to
 # (So we can tell bearwall where it is going to be running from)
 PREFIX ?= /usr/local
@@ -103,45 +101,6 @@ install: install-bin install-conf install-doc install-data
 
 .PHONY: clean all build-bearwall2 install install-bin install-conf install-doc
 
-#---#---#---#
-#
-# All text after the marker above is removed during a "make release" as we
-# put the revision info into the file at release time and it doesn't need
-# to be done each build
-#
-
-all: build-rev
-
-build-rev: build-bearwall2
-	@sed -e 's#VERSION=".*"#VERSION="$(VERSION)"#g' \
-		-e 's#REVISION=".*"#REVISION="$(r)"#g' \
-		src/$(PKGNAME) > src/$(PKGNAME).$$
-	@mv src/$(PKGNAME).$$ src/$(PKGNAME)
-
-r := $(shell ./revision-info.sh)
-tmpdir := $(shell mktemp -ud)
-pwd := $(shell pwd)
-
-release:
-	@./revision-info.sh -c
-	@mkdir -p $(tmpdir)/$(PKGNAME)-$(VERSION)
-	@git archive master | tar -x -C $(tmpdir)/$(PKGNAME)-$(VERSION)
-	@sed -e 's#VERSION=".*"#VERSION="$(VERSION)"#g' \
-		-e 's#REVISION=".*"#REVISION="$(r)"#g' \
-		$(tmpdir)/$(PKGNAME)-$(VERSION)/src/bearwall.in \
-		> $(tmpdir)/$(PKGNAME)-$(VERSION)/src/$(PKGNAME).$$
-	@sed --in-place '/#---#---#---#/,$$d' \
-		$(tmpdir)/$(PKGNAME)-$(VERSION)/Makefile
-	@mv $(tmpdir)/$(PKGNAME)-$(VERSION)/src/$(PKGNAME).$$ \
-		$(tmpdir)/$(PKGNAME)-$(VERSION)/src/bearwall.in
-	@cd $(tmpdir); tar cjf $(pwd)/$(PKGNAME)-$(VERSION).tar.bz2 \
-		$(PKGNAME)-$(VERSION)/
-	@cd $(tmpdir); tar czf $(pwd)/$(PKGNAME)-$(VERSION).tar.gz \
-		$(PKGNAME)-$(VERSION)/
-	@rm -rf $(tmpdir) $(tmpdir)/revision-info.sh
-
 deb:
 	@mk-build-deps -i -r -t 'apt-get -f -y --force-yes'
 	@dpkg-buildpackage -b -us -uc -rfakeroot
-
-.PHONY: release build-rev
