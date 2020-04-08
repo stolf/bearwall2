@@ -51,7 +51,7 @@ match the desired policy for your host.
 The following directories do not need to be modified unless you
 want to change the default behaviour of the firewall.
 
-`@CONFDIR@/classes.d/*`\
+`@CONFDIR@/classes.d/*`
 :   The **classes.d** directory contains templates for different types of interfaces.
 
     Example templates include *external*, *internal*, *loopback* and *vpn*.
