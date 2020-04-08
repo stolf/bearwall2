@@ -2,7 +2,7 @@
 
 <img align="right" width="150" src="https://bearwall.org/barry.png" alt="Barry the Bear">
 
-Bearwall is a firewall builder that allows you to easily manage complex
+[Bearwall](https://bearwall.org) is a firewall builder that allows you to easily manage complex
 security policy on a linux host by separating your policies into reusable
 classes and rulesets.
 
