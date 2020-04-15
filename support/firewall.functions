@@ -513,20 +513,20 @@ function load_interface_rules() {
 		done
 		echo "	}" >> "${OF}"
 	fi
-	if [ ${#PREROUTING[@]} -gt 0 ]; then
+	if [ ${#PRE_ROUTE[@]} -gt 0 ]; then
 		HOOK_PREROUTING=1
 		PREROUTING_IFACE+=($if)
 		echo "	chain ${if}_prerouting {" >> "${OF}"
-		for i in "${PREROUTING[@]}"; do
+		for i in "${PRE_ROUTE[@]}"; do
 			echo "		$i" >> "${OF}"
 		done
 		echo "	}" >> "${OF}"
 	fi
-	if [ ${#POSTROUTING[@]} -gt 0 ]; then
+	if [ ${#POST_ROUTE[@]} -gt 0 ]; then
 		HOOK_POSTROUTING=1
 		POSTROUTING_IFACE+=($if)
 		echo "	chain ${if}_postrouting {" >> "${OF}"
-		for i in "${POSTROUTING[@]}"; do
+		for i in "${POST_ROUTE[@]}"; do
 			echo "		$i" >> "${OF}"
 		done
 		echo "	}" >> "${OF}"
@@ -555,9 +555,20 @@ function build_vmap () {
 			exit -1
 	esac
 
+	case $HOOK in
+		prerouting|postrouting)
+			chain_type="nat"
+			default_policy="accept"
+			;;
+		input|output)
+			chain_type="filter"
+			default_policy="drop"
+			;;
+	esac
+
 	if [ "${REG}" -gt 0 ]; then
 		echo "	chain $CHAIN {" >> "${OF}"
-		echo "		type filter hook $HOOK priority 0; policy drop;" >> "${OF}"
+		echo "		type ${chain_type} hook ${HOOK} priority 0; policy ${default_policy};" >> "${OF}"
 
 		if [ "$VMAP_IIF" -eq 1 ]; then
 			echo "		meta $map_iif vmap {" >> "${OF}"
