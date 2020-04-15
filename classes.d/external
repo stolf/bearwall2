@@ -21,6 +21,9 @@ policy postrouting masquerade
 # If you want to restrict external access further you can add an extra
 # option such as 'ip saddr 10.1.1.0/24' (no quotes) to the above command before
 # the masquerade verdict target
+#
+# Note: this feature requires new versions of linux kernel (>= 5.2)
+# and nftables (>= 0.9.1).
 
 # Advanced Configuration Examples
 
