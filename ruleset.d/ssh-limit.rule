@@ -4,6 +4,6 @@
 #  Uses nftables meters to limit ssh connection attempts to 10 per second
 #  per host
 
-policy ip protocol tcp tcp dport 22 ct state new meter ssh-meter-v4 { ip saddr limit rate 10/minute } accept
-policy ip6 nexthdr tcp tcp dport 22 ct state new meter ssh-meter-v6 { ip6 saddr limit rate 10/minute } accept
+policy ip protocol tcp tcp dport 22 ct state new meter ssh-meter-v4 { ip saddr limit rate 10/second } accept
+policy ip6 nexthdr tcp tcp dport 22 ct state new meter ssh-meter-v6 { ip6 saddr limit rate 10/second } accept
 policy_log tcp dport 22 drop
