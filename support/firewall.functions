@@ -62,9 +62,11 @@ function if_feature() {
 }
 
 function remap_inout () {
-	outrule=""
-	while [ -n "$1" ]; do
-		case $1 in
+	local rule_array=(${1})
+	local outrule=""
+
+	for subject in "${rule_array[@]}"; do
+		case ${subject} in
 			dport)
 				new=sport
 				;;
@@ -108,16 +110,16 @@ function remap_inout () {
 				new=iifgroup
 				;;
 			*)
-				new=$1
+				new="${subject}"
 		esac
 		if [ ! -z "${outrule}" ]; then
-			outrule="$outrule $new"
+			outrule="${outrule} ${new}"
 		else
-			outrule="$new"
+			outrule="${new}"
 		fi
-		shift
 	done
-	rule=$outrule
+
+	rule="${outrule}"
 }
 function register {
 	# Add to list of registered rulesets
