@@ -173,12 +173,12 @@ function import {
 		fi
 	done
 
-	if [ -f "${CONFDIR}/ruleset.d/${RULESET}.rule" ]; then
-		. "${CONFDIR}/ruleset.d/${RULESET}.rule"
-	elif [ -f "ruleset.d/${RULESET}.rule" ]; then
-		. ruleset.d/${RULESET}.rule
+	if [ -f "${CONFDIR}/rulesets.d/${RULESET}.rule" ]; then
+		. "${CONFDIR}/rulesets.d/${RULESET}.rule"
+	elif [ -f "rulesets.d/${RULESET}.rule" ]; then
+		. rulesets.d/${RULESET}.rule
 	else
-		echo "Unknown ruleset ${RULESET}, ${RULESET}.rule file not found in $(pwd)/ruleset.d/ or ${CONFDIR}/ruleset.d/"
+		echo "Unknown ruleset ${RULESET}, ${RULESET}.rule file not found in $(pwd)/rulesets.d/ or ${CONFDIR}/rulesets.d/"
 		exit -1
 	fi
 
