@@ -56,10 +56,10 @@ want to change the default behaviour of the firewall.
 
     Example templates include *external*, *internal*, *loopback* and *vpn*.
 
-`@BASEDIR@/ruleset.d/*.rule`
+`@BASEDIR@/rulesets.d/*.rule`
 :   Default rulesets shipped with @PKGNAME@ are stored in this directory.
 
-`@CONFDIR@/ruleset.d/*.rule`
+`@CONFDIR@/rulesets.d/*.rule`
 :   Users can write their own rulesets and add them into this directory.
 
     See the **RULESETS** section for more details on the default rulesets.
@@ -145,7 +145,7 @@ ssh-limit.rule
 stateful.rule
 :   Use conntrack state to allow connections to pass.
 
-If you want to provide your own rulesets, put them in **@CONFDIR@/ruleset.d**
+If you want to provide your own rulesets, put them in **@CONFDIR@/rulesets.d**
 and reference them like you would a normal ruleset.
 Check any of the above default rulesets for an example of how to write one.
 
@@ -211,7 +211,7 @@ policy in udp dport 100 accept
 This creates an empty ruleset with no rules in it, and then we can use
 nftables as normal to add/delete rules to the chain.
 
-In a newly created **ruleset.d/ssh\_syn.rule**:
+In a newly created **rulesets.d/ssh\_syn.rule**:
 
 ```
 # automatically create an empty 'ssh_syn' chain we can use

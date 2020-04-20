@@ -17,7 +17,7 @@ CONFDIR ?= $(ETCDIR)/$(PKGNAME)
 MANDIR ?= $(SHARDIR)/man
 DATADIR ?= $(CACHEDIR)/$(PKGNAME)
 
-RULESET := $(wildcard ruleset.d/*)
+RULESET := $(wildcard rulesets.d/*)
 CLASSES := $(wildcard classes.d/*)
 INTERFACES := $(wildcard interfaces.d/*)
 SUPPORT := $(wildcard support/*)
@@ -48,7 +48,7 @@ install-bin: all
 		src/$(PKGNAME) $(DESTDIR)$(BINDIR)/$(PKGNAME)
 
 	install -d --group=root --mode=755 --owner=root \
-		$(DESTDIR)$(BASEDIR)/ruleset.d
+		$(DESTDIR)$(BASEDIR)/rulesets.d
 	for i in $(RULESET); \
 		do install -D --group=root --mode=644 --owner=root \
 		$$i $(DESTDIR)$(BASEDIR)/$$i; \
@@ -86,7 +86,7 @@ install-conf: all
 		done
 
 	install -d --group=root --mode=755 --owner=root \
-		$(DESTDIR)$(CONFDIR)/ruleset.d
+		$(DESTDIR)$(CONFDIR)/rulesets.d
 
 install-doc: all
 
