@@ -6,7 +6,7 @@
 # On a simple host you may choose not to include localhost.if and just use
 # all configuration on the interfaces, but when you have multiple public
 # interfaces which may have some local rules and some shared rules, you
-# can use this for the shared rules, and include them amounst the local rules
+# can use this for the shared rules, and include them amongst the local rules
 # where appropriate. The localhost file should not include termination policy
 # like "policy in accept" or "policy out reject" so that interfaces can put
 # rules after the host policy if it chooses.
