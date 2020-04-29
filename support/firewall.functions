@@ -134,19 +134,22 @@ function register {
 function is_ruleset() {
 	LANG=C	# needed to fix bash counting lower case letters in an [A-Z]
 	case $1 in
-		[a-z]*)
-			# assume anything beginning with a lowercase is a builtin
-			return 1
-			;;
-		[0-9]*)
-			# assume anything beginning with a number is a builtin
-			return 1
-			;;
-		"")
-			return 1
+		[A-Z]*)
+			# All rulesets should begin with a capital letter
+			if [ -f "${CONFDIR}/rulesets.d/${1,,}.rule" ]; then
+				# Found a valid ruleset
+				return 0
+			elif [ -f "rulesets.d/${1,,}.rule" ]; then
+				# Found a valid ruleset
+				return 0
+			else
+				# Not a ruleset
+				return 1
+			fi
 			;;
 		*)
-			return 0
+			# Not a ruleset
+			return 1
 			;;
 	esac
 }
