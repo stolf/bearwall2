@@ -123,7 +123,11 @@ function remap_inout () {
 }
 function register {
 	# Add to list of registered rulesets
-	IMPORTED="${IMPORTED} ${RULESET}"
+	if [ -z "${IMPORTED}" ]; then
+		IMPORTED="${RULESET}"
+	else
+		IMPORTED="${IMPORTED} ${RULESET}"
+	fi
 	HAS_REGISTERED=1
 	unset LOCAL_CHAIN
 	declare -a LOCAL_CHAIN
