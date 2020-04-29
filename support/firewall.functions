@@ -495,6 +495,7 @@ function load_interface_rules() {
 
 	if [ ${#FWD_IN[@]} -gt 0 ]; then
 		HOOK_FORWARD=1
+		HOOK_FORWARD_IN=1
 		FORWARD_IN_IFACE+=($if)
 		echo "	chain ${if}_fwd_in {" >> "${OF}"
 		for i in "${FWD_IN[@]}"; do
@@ -504,6 +505,7 @@ function load_interface_rules() {
 	fi
 	if [ ${#FWD_OUT[@]} -gt 0 ]; then
 		HOOK_FORWARD=1
+		HOOK_FORWARD_OUT=1
 		FORWARD_OUT_IFACE+=($if)
 		echo "	chain ${if}_fwd_out {" >> "${OF}"
 		for i in "${FWD_OUT[@]}"; do
@@ -601,10 +603,10 @@ function build_vmap () {
 	fi
 }
 function build_vmap_fwd () {
-	if [ $HOOK_FORWARD -gt 0 ]; then
+	if [ "${HOOK_FORWARD}" -gt 0 ]; then
 		echo "	chain forward {" >> "${OF}"
 		echo "		type filter hook forward priority 0; policy drop;" >> "${OF}"
-		if [ "$VMAP_IIF" -eq 1 ]; then
+		if [ "${VMAP_IIF}" -eq 1 ] && [ "${HOOK_FORWARD_IN}" -gt 0 ]; then
 			echo "		meta iif vmap {" >> "${OF}"
 			for i in "${FORWARD_IN_IFACE[@]}"; do
 				for j in "${INTERFACES[@]}"; do
@@ -616,7 +618,7 @@ function build_vmap_fwd () {
 			done
 			echo "		}" >> "${OF}"
 		fi
-		if [ "$VMAP_IFNAME" -eq 1 ]; then
+		if [ "${VMAP_IFNAME}" -eq 1 ] && [ "${HOOK_FORWARD_IN}" -gt 0 ]; then
 			echo "		meta iifname vmap {" >> "${OF}"
 			for i in "${FORWARD_IN_IFACE[@]}"; do
 				for j in "${INTERFACES_IFNAME[@]}"; do
@@ -629,7 +631,7 @@ function build_vmap_fwd () {
 			echo "		}" >> "${OF}"
 		fi
 
-		if [ "$VMAP_IIF" -eq 1 ]; then
+		if [ "${VMAP_IIF}" -eq 1 ] && [ "${HOOK_FORWARD_OUT}" -gt 0 ]; then
 			echo "		meta oif vmap {" >> "${OF}"
 			for i in "${FORWARD_OUT_IFACE[@]}"; do
 				for j in "${INTERFACES[@]}"; do
@@ -641,7 +643,7 @@ function build_vmap_fwd () {
 			done
 			echo "		}" >> "${OF}"
 		fi
-		if [ "$VMAP_IFNAME" -eq 1 ]; then
+		if [ "${VMAP_IFNAME}" -eq 1 ] && [ "${HOOK_FORWARD_OUT}" -gt 0 ]; then
 			echo "		meta oifname vmap {" >> "${OF}"
 			for i in "${FORWARD_OUT_IFACE[@]}"; do
 				for j in "${INTERFACES_IFNAME[@]}"; do
