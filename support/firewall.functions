@@ -123,7 +123,11 @@ function remap_inout () {
 }
 function register {
 	# Add to list of registered rulesets
-	IMPORTED="${IMPORTED} ${RULESET}"
+	if [ -z "${IMPORTED}" ]; then
+		IMPORTED="${RULESET}"
+	else
+		IMPORTED="${IMPORTED} ${RULESET}"
+	fi
 	HAS_REGISTERED=1
 	unset LOCAL_CHAIN
 	declare -a LOCAL_CHAIN
@@ -134,26 +138,49 @@ function register {
 function is_ruleset() {
 	LANG=C	# needed to fix bash counting lower case letters in an [A-Z]
 	case $1 in
-		[a-z]*)
-			# assume anything beginning with a lowercase is a builtin
-			return 1
-			;;
-		[0-9]*)
-			# assume anything beginning with a number is a builtin
-			return 1
-			;;
-		"")
-			return 1
+		[A-Z]*)
+			# All rulesets should begin with a capital letter
+			if [ -f "${CONFDIR}/rulesets.d/${1,,}.rule" ]; then
+				# Found a valid ruleset
+				return 0
+			elif [ -f "rulesets.d/${1,,}.rule" ]; then
+				# Found a valid ruleset
+				return 0
+			else
+				# Not a ruleset
+				return 1
+			fi
 			;;
 		*)
-			return 0
+			# Not a ruleset
+			return 1
 			;;
 	esac
 }
 
+function jump_to_ruleset {
+	local start_of_rule=${1}
+	local end_of_rule=${2}
+
+	if [ -z "${start_of_rule}" ]; then
+		if [ ! -z "${end_of_rule}" ]; then
+			nft "jump ${RULESET} ${end_of_rule}"
+		else
+			nft "jump ${RULESET}"
+		fi
+	else
+		if [ ! -z "${end_of_rule}" ]; then
+			nft "${start_of_rule} jump ${RULESET} ${end_of_rule}"
+		else
+			nft "${start_of_rule} jump ${RULESET}"
+		fi
+	fi
+}
+
 function import {
 	local i
-	local matches=$1
+	local start_of_rule=${1}
+	local end_of_rule=${3}
 
 	RULESET=${2,,}
 	HAS_REGISTERED=0
@@ -161,11 +188,7 @@ function import {
 	for i in ${IMPORTED}; do
 		if [ "${RULESET}" == "$i" ]; then
 			# If this ruleset has already been registered, we can just jump to it
-			if [ -z "${matches}" ]; then
-				nft "jump ${RULESET}"
-			else
-				nft "${matches} jump ${RULESET}"
-			fi
+			jump_to_ruleset "${start_of_rule}" "${end_of_rule}"
 
 			RULESET=""
 			CHAIN=""
@@ -192,11 +215,7 @@ function import {
 		CHAIN=$OLD_CHAIN
 
 		# Add a jump rule to the new chain created for the registered ruleset
-		if [ -z "${matches}" ]; then
-			nft "jump ${RULESET}"
-		else
-			nft "${matches} jump ${RULESET}"
-		fi
+		jump_to_ruleset "${start_of_rule}" "${end_of_rule}"
 	fi
 
 	RULESET=""
@@ -212,6 +231,46 @@ function check_interface_file {
 	fi
 }
 
+function split_rule_by_terminal_statement(){
+	local rule="${1}"
+	local rule_array=(${rule})
+
+	start_of_rule=""
+	terminal_statement=""
+	end_of_rule=""
+
+	# Walk rule in reverse word order, looking for a terminal statement
+	local terminal_found=0
+	local rule_array_size=${#rule_array[@]}-1
+	local start_of_rule_array
+	local end_of_rule_array
+	for (( i=rule_array_size; i>=0 ; i-- )); do
+		if is_ruleset "${rule_array[i]}"; then
+			terminal_found=1
+		fi
+		for statement in "${TERMINAL_STATEMENTS[@]}"; do
+			if [ "${rule_array[i]}" == "${statement}" ]; then
+				terminal_found=1
+				break
+			fi
+		done
+		if [ "${terminal_found}" -eq 1 ]; then
+			start_of_rule_array=("${rule_array[@]:0:${i}}")
+			end_of_rule_array=("${rule_array[@]:${i}+1}")
+			terminal_statement="${rule_array[i]}"
+			break
+		fi
+	done
+
+	if [ "${terminal_found}" -eq 1 ]; then
+		start_of_rule="${start_of_rule_array[*]}"
+		end_of_rule="${end_of_rule_array[*]}"
+	else
+		# No terminal statement found
+		start_of_rule="${rule}"
+	fi
+}
+
 function nft(){
 	rule="$*"
 
@@ -219,17 +278,15 @@ function nft(){
 		return 0
 	fi
 
-	local matches verdict
-	matches=$(echo "${rule}" | awk '{$NF=""; print $0}' | awk '{$1=$1};1')
-	verdict=$(echo "${rule}" | awk '{print $NF}')
+	split_rule_by_terminal_statement "${rule}"
 
-	# check if verdict is a ruleset and import it
-	if is_ruleset "${verdict}"; then
+	# check if terminal is a ruleset and import it
+	if is_ruleset "${terminal_statement}"; then
 		if [ -z "${RULESET}" ]; then
-			import "${matches}" "${verdict}"
+			import "${start_of_rule}" "${terminal_statement}" "${end_of_rule}"
 			return 0
 		else
-			echo "Error loading ruleset, nested loading of a ruleset (${verdict,,}) from inside another ruleset (${RULESET}) is not supported"
+			echo "Error loading ruleset, nested loading of a ruleset (${terminal_statement,,}) from inside another ruleset (${RULESET}) is not supported"
 			exit -1
 		fi
 	fi
@@ -248,8 +305,12 @@ function nft(){
 			;;
 		forward-in)
 			# Replace accept with return so packets get passed on to forward-out
-			if [ "${verdict}" == "accept" ]; then
-				FWD_IN+=("${matches} return")
+			if [ "${terminal_statement}" == "accept" ]; then
+				if [ ! -z "${end_of_rule}" ]; then
+					FWD_IN+=("${start_of_rule} return ${end_of_rule}")
+				else
+					FWD_IN+=("${start_of_rule} return")
+				fi
 			else
 				FWD_IN+=("${rule}")
 			fi
@@ -259,8 +320,12 @@ function nft(){
 			;;
 		forward)
 			# Replace accept with return so packets get passed on to forward-out
-			if [ "${verdict}" == "accept" ]; then
-				FWD_IN+=("${matches} return")
+			if [ "${terminal_statement}" == "accept" ]; then
+				if [ ! -z "${end_of_rule}" ]; then
+					FWD_IN+=("${start_of_rule} return ${end_of_rule}")
+				else
+					FWD_IN+=("${start_of_rule} return")
+				fi
 			else
 				FWD_IN+=("${rule}")
 			fi
@@ -324,17 +389,6 @@ function policy_log(){
 function nft_log(){
 	local rule="$*"
 
-	local terminal_statements=(
-		"accept"
-		"drop"
-		"reject"
-		"queue"
-		"continue"
-		"return"
-		"jump"
-		"goto"
-		)
-
 	local log_prefix=""
 	if [ ! -z "${RULESET}" ]; then
 		log_prefix+="${RULESET}"
@@ -342,34 +396,24 @@ function nft_log(){
 		log_prefix+="${if}_${CHAIN}"
 	fi
 
-	local rule_array=(${rule})
+	split_rule_by_terminal_statement "${rule}"
 
-	# Walk rule in reverse word order, looking for a terminal statement,
-	# if we find one, put our log rule before it
-	local log_rule
-	local terminal_found=0
-	local rule_array_size=${#rule_array[@]}-1
-	for (( i=rule_array_size; i>=0 ; i-- )); do
-		for terminal_statement in "${terminal_statements[@]}"; do
-			if [ "${rule_array[i]}" == "${terminal_statement}" ]; then
-				terminal_found=1
-				local start_of_rule=("${rule_array[@]:0:$i}")
-				local end_of_rule=("${rule_array[@]:$i}")
-				log_rule=$(log "${log_prefix}/${terminal_statement}")
-				if [ -z "${start_of_rule[*]}" ]; then
-					rule="${log_rule} ${end_of_rule[*]}"
-				else
-					rule="${start_of_rule[*]} ${log_rule} ${end_of_rule[*]}"
-				fi
-				break
-			fi
-		done
-	done
-
-	# If there's no terminal statement, just add the log statement to the end
-	if [ "${terminal_found}" -eq 0 ]; then
+	if [ -z "${terminal_statement}" ]; then
 		log_rule=$(log "${log_prefix}")
-		rule="${rule} ${log_rule}"
+		# If there is no terminal statement, the entire rule will be in start_of_rule
+		rule="${start_of_rule} ${log_rule}"
+	else
+		log_rule=$(log "${log_prefix}/${terminal_statement}")
+		# There is a terminal statement, however start_of_rule or end_of_rule may be empty
+		if [ -z "${start_of_rule}" ] && [ -z "${end_of_rule}" ]; then
+			rule="${log_rule} ${terminal_statement}"
+		elif [ ! -z "${start_of_rule}" ] && [ ! -z "${end_of_rule}" ]; then
+			rule="${start_of_rule} ${log_rule} ${terminal_statement} ${end_of_rule}"
+		elif [ ! -z "${start_of_rule}" ]; then
+			rule="${start_of_rule} ${log_rule} ${terminal_statement}"
+		elif [ ! -z "${end_of_rule}" ]; then
+			rule="${log_rule} ${terminal_statement} ${end_of_rule}"
+		fi
 	fi
 
 	nft "${rule}"
@@ -413,6 +457,18 @@ function load_interface_rules() {
 		"prerouting"
 		"postrouting"
 		"local"
+		)
+
+	# List of valid nftables terminal statements
+	TERMINAL_STATEMENTS=(
+		"accept"
+		"drop"
+		"reject"
+		"queue"
+		"continue"
+		"return"
+		"jump"
+		"goto"
 		)
 
 	substatus "${if}"
