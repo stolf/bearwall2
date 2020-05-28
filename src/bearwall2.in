@@ -103,12 +103,7 @@ if [ "${MODE}" == "rollback" ]; then
 	/usr/sbin/nft -f "${BACKUP}"
 
 	# Tidy other rollbacks which might be running in background
-	while read -r pid; do
-	  if [ ! -z "${pid}" ] && [ "${pid}" != "${BASHPID}" ]; then
-		kill "${pid}"
-	  fi
-	done <<<"$(pgrep -f 'bearwall2 rollback')"
-
+	stop_rollbacks
 	exit 0
 fi
 
@@ -118,7 +113,7 @@ mkdir -p "${DATADIR}/tmp"
 
 if [ "${MODE}" == "commit" ]; then
 	status "Committing current firewall policy"
-	if pkill -f 'bearwall2 rollback' > /dev/null; then
+	if stop_rollbacks; then
 		substatus "Commit successful"
 		exit 0
 	else
@@ -215,7 +210,10 @@ To commit the new firewall policy, run:
 To rollback without waiting, run:
 	$ sudo bearwall2 rollback"
 
-	/usr/sbin/nft -f "${OF}"
+	if ! /usr/sbin/nft -f "${OF}"; then
+		substatus "Error loading nftables rules, abandoning new changes"
+		stop_rollbacks
+	fi
 elif [ "${MODE}" == "dryrun" ]; then
 	status "Dry-run mode, not loading firewall policies"
 	substatus "nftables rule file can be found at ${OF}"
