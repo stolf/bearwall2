@@ -19,7 +19,7 @@ function trim() {
 	echo -n "${input_str}"
 }
 
-array_contains () {
+function array_contains () {
 	local array match in
 	match=$1
 	array="$2[@]"
@@ -31,4 +31,16 @@ array_contains () {
 		fi
 	done
 	return ${in}
+}
+
+function stop_rollbacks() {
+	local retcode=1
+	while read -r pid; do
+	  if [ ! -z "${pid}" ] && [ "${pid}" != "${BASHPID}" ] && [ -e /proc/${pid} ]; then
+		retcode=0
+		kill "${pid}"
+	  fi
+	done <<<"$(pgrep -f 'bearwall2 rollback')"
+
+	return "${retcode}"
 }
