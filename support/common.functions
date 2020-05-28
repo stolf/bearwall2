@@ -44,3 +44,13 @@ function stop_rollbacks() {
 
 	return "${retcode}"
 }
+
+function always_use_ifname() {
+	if=${1}
+	for inttype in ${conf_always_ifname//,/ }; do
+		if [[ "${if}" == "${inttype}"* ]]; then
+			return 0
+		fi
+	done
+	return 1
+}
