@@ -480,7 +480,10 @@ function load_interface_rules() {
 			break
 		fi
 	done
-	if [ "$IFACE_FOUND" -eq 0 ]; then
+	if always_use_ifname "${if}"; then
+		INTERFACES_IFNAME+=($if)
+		VMAP_IFNAME=1
+	elif [ "$IFACE_FOUND" -eq 0 ]; then
 		case "${conf_missing}" in
 			ifname)
 				INTERFACES_IFNAME+=($if)

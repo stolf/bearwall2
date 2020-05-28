@@ -81,6 +81,23 @@ conntrack=stateful
 missing=withhold
 
 #
+# Transient interfaces
+#
+# List of interfaces that should always be created and referenced by ifname
+# instead of ifindex, irrespective of what the missing interface configuration
+# option is set to.
+#
+# Useful for interfaces such as ppp which might not exist when bearwall starts
+# and keep the same ifname but renumber their ifindex when the tunnel reconnects.
+#
+# Values:
+#    - comma-separated list of interface types
+#      (which are string matched against the start of an interface name)
+#
+# Default always_ifname="ppp"
+always_ifname="ppp"
+
+#
 # Rollback delay
 #
 # The number of seconds bearwall should wait before automatically rolling back
