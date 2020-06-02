@@ -11,6 +11,7 @@ override_dh_auto_install:
 
 override_dh_systemd_enable:
 	dh_systemd_enable --name=bearwall2
+	dh_systemd_enable --name=bearwall2-early
 
 override_dh_installinit:
 	dh_installinit --name=bearwall2
