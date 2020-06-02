@@ -1,0 +1,12 @@
+[Unit]
+Description=Bearwall2 early boot
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/sbin/bearwall2
+
+[Install]
+WantedBy=multi-user.target

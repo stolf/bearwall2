@@ -1,6 +1,7 @@
 [Unit]
 Description=Bearwall2
-Before=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot

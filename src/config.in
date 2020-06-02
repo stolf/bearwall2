@@ -77,8 +77,8 @@ conntrack=stateful
 #    - ignore
 #        Don't detect case (Most likely nftables will fail to load)
 #
-# Default missing=withhold
-missing=withhold
+# Default missing=lazy
+missing=lazy
 
 #
 # Transient interfaces

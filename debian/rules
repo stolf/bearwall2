@@ -6,6 +6,15 @@
 %:
 	dh $@ --with systemd
 
-
 override_dh_auto_install:
 	dh_auto_install -- DESTDIR=$$(pwd)/debian/bearwall2 BINDIR=/usr/sbin SHARDIR=/usr/share ETCDIR=/etc CACHEDIR=/var/cache
+
+override_dh_systemd_enable:
+	dh_systemd_enable --name=bearwall2
+
+override_dh_installinit:
+	dh_installinit --name=bearwall2
+	dh_installinit --name=bearwall2-early --no-start
+
+override_dh_systemd_start:
+	dh_systemd_start bearwall2.service
